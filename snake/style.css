@@ -1,0 +1,16 @@
+/* style.css */
+/* 전체 페이지를 중앙에 배치하고 기본 스타일을 설정 */
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #f0f0f0;
+}
+
+/* 캔버스에 테두리와 배경색을 설정 */
+canvas {
+    border: 2px solid black;
+    background-color: #ffffff;
+}
