@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>rhythm</title>
+  <link rel="stylesheet" href="./style.css" />
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .menu,
+    .game,
+    .popup {
+      text-align: center;
+    }
+
+    .title {
+      font-size: 2rem;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #gameCanvas {
+      display: block;
+      margin: 0 auto;
+      position: absolute;
+      bottom: 50px;
+      /* 화면 아래에서 50px 여백 */
+      left: 50%;
+      transform: translateX(-50%);
+      border: 1px solid #ccc;
+      background-color: white;
+      z-index: 1;
+    }
+
+    .backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 10;
+    }
+
+    .popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      z-index: 20;
+    }
+
+    #score {
+      font-size: 1.5rem;
+      margin: 10px 0;
+      z-index: 2;
+    }
+
+    #timer {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #333;
+      display: none;
+      z-index: 2;
+    }
+
+    #scoreCounts {
+      position: absolute;
+      top: 50px;
+      /* 타이머 바로 아래 */
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #333;
+      text-align: center;
+      z-index: 2;
+    }
+
+    #backButton {
+      position: absolute;
+      top: 90px;
+      /* scoreCounts 아래 */
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+      z-index: 2;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="menu" id="menu" style="display: inline;">
+    <p class="title">리듬 게임</p>
+    <button id="startButton">시작하기</button>
+  </div>
+  <div class="song-selection" id="songSelection" style="display: none;">
+    <p class="title">노래를 선택하세요</p>
+    <ul id="songList"></ul>
+  </div>
+  <div class="game" id="game" style="display: none;">
+    <div id="timer"></div>
+    <div id="scoreCounts"></div>
+    <button id="backButton">돌아가기</button>
+    <canvas id="gameCanvas"></canvas>
+  </div>
+  <div class="backdrop" id="backdrop" style="display: none;"></div>
+  <div class="popup" id="popup" style="display: none;">
+    <p id="title">게임오버</p>
+    <p id="score">점수: 0점</p>
+    <button id="retryButton">다시하기</button>
+  </div>
+  <script src="./script.js" defer></script>
+  <script defer>
+    const startButton = document.getElementById('startButton');
+    const retryButton = document.getElementById('retryButton');
+    const menu = document.getElementById('menu');
+    const game = document.getElementById('game');
+    const popup = document.getElementById('popup');
+    const backdrop = document.getElementById('backdrop');
+    const scoreElement = document.getElementById('score');
+    const gameCanvas = document.getElementById('gameCanvas');
+    const ctx = gameCanvas.getContext('2d');
+    const scoreCountsElement = document.getElementById('scoreCounts'); // 점수 카운트 요소
+    const songSelection = document.getElementById('songSelection');
+    const songList = document.getElementById('songList');
+    const backButton = document.getElementById('backButton'); // 돌아가기 버튼
+
+    const songs = [
+      {
+        name: 'Song 1',
+        file: './song1.mp3',
+        chart: [
+          { time: 500, lane: 0 },
+          { time: 1000, lane: 1 },
+          { time: 1500, lane: 2 },
+          { time: 2000, lane: 3 },
+        ],
+      },
+      {
+        name: 'Song 2',
+        file: './song2.mp3',
+        chart: [
+          { time: 700, lane: 1 },
+          { time: 1700, lane: 3 },
+          { time: 2200, lane: 0 },
+        ],
+      },
+      {
+        name: 'Song 3',
+        file: './song3.mp3',
+        chart: [
+          { time: 400, lane: 2 },
+          { time: 900, lane: 0 },
+          { time: 1900, lane: 3 },
+        ],
+      },
+    ];
+
+    let selectedSong = null; // 선택된 노래
+
+    // 노래 목록 생성
+    songs.forEach((song, index) => {
+      const li = document.createElement('li');
+      li.textContent = song.name;
+      li.style.cursor = 'pointer';
+      li.style.margin = '10px 0';
+      li.style.listStyle = 'none';
+      li.style.padding = '10px';
+      li.style.border = '1px solid #ccc';
+      li.style.borderRadius = '5px';
+      li.style.backgroundColor = '#f9f9f9';
+      li.addEventListener('click', () => {
+        selectedSong = songs[index];
+        startGame();
+      });
+      songList.appendChild(li);
+    });
+    const canvasWidth = 450;
+    const canvasHeight = 750;
+    const laneWidth = canvasWidth / 4;
+    const keys = ['d', 'f', 'j', 'k'];
+    const keyMap = { d: 0, f: 1, j: 2, k: 3 };
+    const notes = [];
+    let score = 0;
+    let animationFrame;
+    let gameRunning = false;
+    let noteSpeed = 10; // 기본 속도 (픽셀 단위)
+    // 점수 카운트 변수 추가
+    let perfectCount = 0;
+    let goodCount = 0;
+    let badCount = 0;
+    let missCount = 0;
+    gameCanvas.width = canvasWidth;
+    gameCanvas.height = canvasHeight;
+    let gameTime = 10; // 게임 총 시간 (초)
+    let remainingTime = gameTime; // 남은 시간
+    let timerInterval; // 타이머 인터벌
+    let playMusic = false; // 노래 재생 여부
+    const audio = new Audio(); // 재생할 노래 파일 경로
+
+    function startGame() {
+      if (!selectedSong) return;
+
+      menu.style.display = 'none';
+      songSelection.style.display = 'none';
+      game.style.display = 'block';
+      popup.style.display = 'none';
+      backdrop.style.display = 'none';
+
+      resetGameState();
+
+      if (playMusic) {
+        audio.src = selectedSong.file;
+        audio.currentTime = 0;
+        audio.play();
+      }
+
+      spawnNotes(selectedSong.chart);
+      updateGame();
+      startTimer();
+    }
+
+    function resetGameState() {
+      score = 0;
+      notes.length = 0;
+      remainingTime = gameTime;
+      gameRunning = true;
+      perfectCount = 0;
+      goodCount = 0;
+      badCount = 0;
+      missCount = 0;
+    }
+
+    function endGame() {
+      gameRunning = false;
+      clearInterval(timerInterval); // 타이머 정지
+      cancelAnimationFrame(animationFrame);
+      game.style.display = 'none';
+      popup.style.display = 'block';
+      backdrop.style.display = 'block';
+      scoreElement.textContent = `점수: ${score}점`;
+
+      if (playMusic) {
+        audio.pause(); // 노래 멈춤
+      }
+    }
+
+    function startTimer() {
+      const timerElement = document.getElementById('timer');
+      timerElement.style.display = 'block'; // 타이머 표시
+      timerInterval = setInterval(() => {
+        if (!gameRunning) return;
+        remainingTime -= 1;
+        timerElement.textContent = `점수: ${score} | 남은 시간: ${remainingTime}s`;
+        if (remainingTime <= 0) {
+          endGame(); // 시간이 끝나면 게임 종료
+        }
+      }, 1000);
+    }
+
+    function spawnNotes(chart) {
+      chart.forEach(note => {
+        setTimeout(() => {
+          if (!gameRunning) return;
+          notes.push({
+            lane: note.lane,
+            y: -100,
+            time: note.time,
+          });
+        }, note.time);
+      });
+    }
+
+    // 인식선의 높이 설정
+    const hitLineHeight = 150; // 인식선 높이 (캔버스 아래에서부터의 거리)
+    const hitLineY = canvasHeight - hitLineHeight; // 인식선의 Y 좌표 계산
+
+    const effects = []; // 눌렀을 때 효과를 저장하는 배열
+
+    // 캔버스 높이를 키보드 영역까지 포함하지 않고, 키보드 영역을 캔버스 내부에 그리도록 수정
+    const keyboardHeight = 100; // 키보드 영역 높이
+    const keyboardY = canvasHeight - keyboardHeight; // 키보드 영역의 Y 좌표 (캔버스 내부에 포함)
+
+    const activeKeys = new Set(); // 현재 눌려 있는 키를 추적
+
+    // 캔버스 높이를 원래대로 유지
+    gameCanvas.height = canvasHeight;
+
+    function drawKeyboard() {
+      for (let i = 0; i < 4; i++) {
+        const isActive = activeKeys.has(keys[i]); // 키가 눌렸는지 확인
+        ctx.fillStyle = isActive ? '#ff0000' : '#222'; // 눌린 키는 빨간색, 나머지는 어두운 회색
+        ctx.fillRect(i * laneWidth, keyboardY, laneWidth, keyboardHeight);
+
+        // 키 테두리
+        ctx.strokeStyle = '#444'; // 어두운 테두리
+        ctx.lineWidth = 2;
+        ctx.strokeRect(i * laneWidth, keyboardY, laneWidth, keyboardHeight);
+
+        // 키 내부 반사 효과
+        if (isActive) {
+          const gradient = ctx.createLinearGradient(
+            i * laneWidth,
+            keyboardY,
+            i * laneWidth,
+            keyboardY + keyboardHeight
+          );
+          gradient.addColorStop(0, 'rgba(255, 100, 100, 0.8)'); // 밝은 빨간색
+          gradient.addColorStop(1, 'rgba(255, 0, 0, 0.2)'); // 어두운 빨간색
+          ctx.fillStyle = gradient;
+          ctx.fillRect(i * laneWidth, keyboardY, laneWidth, keyboardHeight);
+        }
+      }
+    }
+
+    function updateGame() {
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight); // 캔버스 전체를 클리어
+
+      drawLanes();
+      drawHitLine();
+      drawNotes();
+      drawEffects();
+      drawFeedback();
+      drawKeyboard(); // 키보드 영역 그리기
+
+      scoreCountsElement.textContent = `Perfect: ${perfectCount} | Good: ${goodCount} | Bad: ${badCount} | Miss: ${missCount}`;
+
+      animationFrame = requestAnimationFrame(updateGame);
+    }
+
+    function drawLanes() {
+      for (let i = 0; i < 4; i++) {
+        ctx.fillStyle = i % 2 === 0 ? '#ddd' : '#ccc';
+        ctx.fillRect(i * laneWidth, 0, laneWidth, canvasHeight);
+      }
+    }
+
+    function drawHitLine() {
+      ctx.fillStyle = '#ff0000';
+      ctx.fillRect(0, hitLineY, canvasWidth, 5);
+    }
+
+    function drawNotes() {
+      notes.forEach((note, index) => {
+        note.y += noteSpeed;
+
+        ctx.fillStyle = '#007bff';
+        ctx.fillRect(note.lane * laneWidth + 10, note.y, laneWidth - 20, 20);
+
+        if (note.y > canvasHeight) {
+          notes.splice(index, 1);
+          missCount++;
+          showFeedback('Miss');
+        }
+      });
+    }
+
+    function drawEffects() {
+      effects.forEach((effect, index) => {
+        ctx.beginPath();
+        ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 0, ${effect.opacity})`;
+        ctx.fill();
+        effect.radius += 2;
+        effect.opacity -= 0.05;
+
+        if (effect.opacity <= 0) {
+          effects.splice(index, 1);
+        }
+      });
+    }
+
+    function drawFeedback() {
+      if (feedbackText) {
+        ctx.font = '30px Arial';
+        ctx.fillStyle = '#000';
+        ctx.textAlign = 'center';
+        ctx.fillText(feedbackText, canvasWidth / 2, hitLineY - 50);
+      }
+    }
+
+    function handleKeyPress(event) {
+      if (!gameRunning) return;
+      const lane = keyMap[event.key];
+      if (lane === undefined || activeKeys.has(event.key)) return;
+
+      activeKeys.add(event.key); // 키를 활성 상태로 추가
+
+      effects.push({
+        x: lane * laneWidth + laneWidth / 2,
+        y: hitLineY,
+        radius: 5,
+        opacity: 1,
+      });
+
+      const hitIndex = notes.findIndex(note => note.lane === lane);
+      if (hitIndex !== -1) {
+        const note = notes[hitIndex];
+        const distance = Math.abs(note.y - hitLineY);
+        processNoteHit(note, hitIndex, distance);
+      }
+    }
+
+    function handleKeyRelease(event) {
+      const lane = keyMap[event.key];
+      if (lane === undefined) return;
+
+      activeKeys.delete(event.key); // 키를 비활성 상태로 제거
+    }
+
+    function processNoteHit(note, hitIndex, distance) {
+      if (distance <= 10) {
+        score += 10;
+        perfectCount++;
+        showFeedback('Perfect');
+        notes.splice(hitIndex, 1);
+      } else if (distance <= 20) {
+        score += 5;
+        goodCount++;
+        showFeedback('Good');
+        notes.splice(hitIndex, 1);
+      } else if (distance <= 30) {
+        badCount++;
+        showFeedback('Bad');
+        notes.splice(hitIndex, 1);
+      } else if (distance <= 300) {
+        missCount++;
+        showFeedback('Miss');
+        notes.splice(hitIndex, 1);
+      }
+    }
+
+    function showFeedback(text) {
+      feedbackText = text;
+      clearTimeout(feedbackTimeout);
+      feedbackTimeout = setTimeout(() => {
+        feedbackText = '';
+      }, 1000);
+    }
+
+    // "다시하기" 버튼 클릭 시 초기 메뉴 화면으로 돌아가기
+    retryButton.addEventListener('click', () => {
+      popup.style.display = 'none';
+      backdrop.style.display = 'none';
+      menu.style.display = 'inline'; // 초기 메뉴 화면 표시
+
+      if (playMusic) {
+        audio.pause(); // 노래 멈춤
+      }
+    });
+    startButton.addEventListener('click', () => {
+      menu.style.display = 'none';
+      songSelection.style.display = 'block'; // 노래 선택 화면 표시
+    });
+    backButton.addEventListener('click', () => {
+      game.style.display = 'none'; // 게임 화면 숨기기
+      menu.style.display = 'inline'; // 첫 번째 메뉴 화면 표시
+
+      if (playMusic) {
+        audio.pause(); // 노래 멈춤
+      }
+
+      // 게임 상태 초기화
+      gameRunning = false;
+      clearInterval(timerInterval); // 타이머 정지
+      cancelAnimationFrame(animationFrame); // 애니메이션 정지
+      notes.length = 0; // 노트 초기화
+    });
+
+    document.addEventListener('keydown', handleKeyPress);
+    document.addEventListener('keyup', handleKeyRelease);
+
+    let feedbackText = ''; // 피드백 텍스트
+    let feedbackTimeout; // 피드백 텍스트 타이머
+  </script>
+</body>
+</html>
