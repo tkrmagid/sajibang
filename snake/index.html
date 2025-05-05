@@ -1,13 +1,25 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>sanke</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sanke</title>
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
+  <div class="menu" id="menu" style="display: inline;">
+    <p class="title">스네이크 게임</p>
+    <button id="startButton">시작하기</button>
+  </div>
+  <div class="game" id="game" style="display: none;">
     <canvas id="gameCanvas"></canvas>
-    <script src="script.js"></script>
+  </div>
+  <div class="backdrop" id="backdrop" style="display: none;"></div>
+  <div class="popup" id="popup" style="display: none;">
+    <p id="title">게임오버</p>
+    <p id="score">점수: 0점</p>
+    <button id="retryButton">다시하기</button>
+  </div>
+  <script src="./script.js"></script>
 </body>
 </html>
