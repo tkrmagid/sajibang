@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>rhythm</title>
-  <!-- <script type="text/javascript" src="./jwplayer/translations/ko.json"></script> -->
+  <!-- ./js/jwplayer/jwplayer.js 2225 var t = "./js/jwplayer/"; -->
   <script type="text/javascript" src="./jwplayer/jwplayer.js"></script>
   <script>jwplayer.key = "Bch7bd0cZt0adCRYHGveauTP1LaJlq1EMyrU/IxgfrGDc3gTqZxyPFEKKMI";</script>
   <script type="text/javascript" src="./jwplayer/provider.hlsjs.js"></script>
@@ -69,19 +69,15 @@
     <button id="settingSaveButton">저장</button>
     <button id="settingCloseButton">닫기</button>
   </div>
-  <script type="text/javascript" defer>
-    var DEV = false;
-    function DEVON() {
-      DEV = true;
-      document.getElementById('customButton').style.display = 'block';
-      console.log('개발자모드 : ON');
-    }
-    function DEVOFF() {
-      DEV = false;
-      document.getElementById('customButton').style.display = 'none';
-      console.log('개발자모드 : OFF');
-    }
-  </script>
-  <script src="./script.js" type="module" defer></script>
+  <!-- charts -->
+   <!-- user charts -->
+   <script type="text/javascript" src="./charts/iu_eight.js"></script>
+   <script type="text/javascript" src="./charts/test.js"></script>
+   <!-- default charts -->
+   <script type="text/javascript" src="./charts/correction.js"></script>
+
+  <!-- scripts -->
+  <script type="text/javascript" src="./songs.js"></script>
+  <script type="text/javascript" src="./script.js" defer></script>
 </body>
 </html>

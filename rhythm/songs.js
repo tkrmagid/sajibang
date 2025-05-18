@@ -1,9 +1,4 @@
-import correction from './charts/correction.js';
-import iu_eight from './charts/iu_eight.js';
-import test from './charts/test.js';
-
-
-/** @type {import('./songs_type.js').SongData} */
+/** @type {import('./@types/songs.type.js').SongData[]} */
 const USER_SONGS = [
   {
     name: '아이유 - 에잇',
@@ -14,7 +9,7 @@ const USER_SONGS = [
       startTime: 1146,
       endTime: 1296,
     },
-    chart: iu_eight,
+    chart: CHART_iu_eight,
   },
   {
     name: '테스트곡',
@@ -25,12 +20,12 @@ const USER_SONGS = [
       startTime: 0,
       endTime: 10,
     },
-    chart: test,
+    chart: CHART_test,
   },
 ]
 
 
-/** @type {import('./songs_type.js').SongData} */
+/** @type {import('./@types/songs.type.js').SongData[]} */
 const DEFAULT_SONGS = [
   {
     name: 'correction',
@@ -41,7 +36,7 @@ const DEFAULT_SONGS = [
       startTime: 0,
       endTime: 1,
     },
-    chart: correction,
+    chart: CHART_correction,
   },
   {
     name: 'makeNote',
@@ -56,5 +51,5 @@ const DEFAULT_SONGS = [
   },
 ]
 
-/** @type {import('./songs_type.js').SongData} */
-export const SONGS = [...USER_SONGS, ...DEFAULT_SONGS];
+/** @type {import('./@types/songs.type.js').SongData[]} */
+const SONGS = [...USER_SONGS, ...DEFAULT_SONGS];

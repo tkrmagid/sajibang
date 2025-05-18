@@ -2222,7 +2222,7 @@ window.jwplayer = function(t) {
         u = function() {
             //TODO 라이브러리를 로컬에서 불러오게 수정한다.
         	//var t = "//ssl.p.jwpcdn.com/player/v/8.18.3/";
-        	var t = "./jwplayer/";
+        	var t = "./js/jwplayer/";
             return "" + (Object(i.isFileProtocol)() ? "https:" : "") + t
         },
         a = function(t) {

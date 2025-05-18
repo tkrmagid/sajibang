@@ -1,4 +1,14 @@
-import { SONGS } from './songs/songs.js';
+var DEV = false;
+function DEVON() {
+  DEV = true;
+  document.getElementById('customButton').style.display = 'block';
+  console.log('개발자모드 : ON');
+}
+function DEVOFF() {
+  DEV = false;
+  document.getElementById('customButton').style.display = 'none';
+  console.log('개발자모드 : OFF');
+}
 
 function formatTime(time) {
   const minutes = Math.floor(time / 60);
@@ -144,14 +154,12 @@ class GameClass {
       if (DEV) console.log('보정 모드');
       this.correctionList = [];
       this.correctionValue = 0;
-      this.gameSong = SONGS[SONGS.findIndex(song => song.name === 'correction')];
-      this.startGame.call(this);
+      this.initSong.call(this, 'correction');
     });
     this.customButton.addEventListener('click', () => {
       if (DEV) console.log('유저 노트 생성');
       this.makeButton.style.display = 'block';
-      this.gameSong = SONGS[SONGS.findIndex(song => song.name === 'makeNote')];
-      this.startGame.call(this);
+      this.initSong.call(this, 'makeNote');
     });
     this.settingButton.addEventListener('click', () => {
       for (let i in this.keyInputs) this.keyInputs[i].value = this.keys[i];
@@ -221,15 +229,13 @@ class GameClass {
     this.makeButton.style.display = 'none';
 
     this.songList.innerHTML = ''; // 기존 노래 목록 초기화
-    SONGS.forEach((song, index) => {
-      if (!song.show) return; // 노래가 보이지 않도록 설정된 경우
+    SONGS.filter(s => s.show).forEach((song, index) => {
       const li = document.createElement('li');
       li.textContent = song.name;
       li.id = `song-${index}`;
       li.classList.add('song-item');
       li.addEventListener('click', () => {
-        this.gameSong = song;
-        this.startGame();
+        this.initSong.call(this, song.name);
       });
       this.songList.appendChild(li);
     });
@@ -259,6 +265,16 @@ class GameClass {
         this.player.pause(true);
       }
     });
+  }
+
+  initSong(songName) {
+    const songIndex = SONGS.findIndex(s => s.name === songName);
+    if (songIndex === -1) {
+      alert('노래를 찾을수 없습니다.');
+      return;
+    }
+    this.gameSong = SONGS[songIndex];
+    this.startGame.call(this);
   }
 
   startGame() {
