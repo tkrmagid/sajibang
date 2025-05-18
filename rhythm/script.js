@@ -11,10 +11,10 @@ function DEVOFF() {
 }
 
 function formatTime(time) {
-  const minutes = Math.floor(time / 60);
-  const seconds = Math.floor(time % 60);
-  const milliseconds = Math.floor((time % 1) * 100);
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(2, '0')}`;
+  const min = Math.floor(time/60).toString();
+  const sec = Math.floor(time%60).toString();
+  const milsec = Math.floor((time % 1)*100).toString();
+  return `${min.padStart(2,'0')}:${sec.padStart(2,'0')}.${milsec.padStart(2,'0')}`;
 }
 
 if (!window.localStorage.getItem('keys')) window.localStorage.setItem('keys', JSON.stringify(['d', 'f', 'j', 'k'])); // 기본 키설정
