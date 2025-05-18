@@ -1,0 +1,218 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f0f0f0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.menu,
+.gameDIV,
+.popup {
+  text-align: center;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+.buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* flex or grid일때 사용 , margin대신 gap으로 편하게 간격관리 , row=좌우,column=상하 */
+  align-items: center;
+}
+
+button {
+  padding: 10px 20px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 5px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+  z-index: 2;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+#mainButton {
+  display: block;
+  margin: 10px auto 30px auto;
+}
+
+#backButton {
+  position: absolute;
+  top: 90px;
+  /* scoreCounts 아래 */
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 5px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+  z-index: 2;
+}
+
+#makeButton {
+  position: absolute;
+  top: 90px;
+  /* scoreCounts 아래 */
+  left: calc(50% + 100px);
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 5px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+  z-index: 2;
+}
+
+#correction {
+  margin: 0;
+  padding: 0;
+}
+
+.volume-control {
+  margin-top: 20px;
+  text-align: center;
+}
+
+#volumeSlider {
+  width: 200px;
+  margin-top: 10px;
+}
+
+.song-list {
+  padding: 0;
+  text-align: center;
+}
+
+.song-item {
+  cursor: pointer;
+  margin: 15px 20px;
+  list-style: none;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+}
+
+.song-item:hover {
+  background-color: #e9e9e9;
+}
+
+#gameTimer {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+  display: none;
+  z-index: 2;
+}
+
+#gameFeedbackCounts {
+  position: absolute;
+  top: 50px;
+  /* 타이머 바로 아래 */
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #333;
+  text-align: center;
+  z-index: 2;
+}
+
+#gameCanvas {
+  display: block;
+  margin: 0 auto;
+  position: absolute;
+  bottom: 50px;
+  /* 화면 아래에서 50px 여백 */
+  left: 50%;
+  transform: translateX(-50%);
+  border: 1px solid #ccc;
+  background-color: white;
+  z-index: 1;
+}
+
+.playerDIV {
+  display: block;
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translate(-50%, 100%);
+}
+
+#player {
+  margin: 30px auto 50px auto;
+}
+
+.backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 10;
+}
+
+.popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 30;
+}
+
+#settingPopup {
+  z-index: 20;
+}
+#settingPopup input[type="text"] {
+  font-size: 30px;
+  width: 40px;
+  height: 40px;
+  margin: 0 5px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  text-align: center;
+  background: #fafbff;
+  transition: border-color 0.2s box-shadow 0.2s;
+  outline: none;
+}
+#settingPopup input[type="text"]:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 5px #007bff33;
+  background: #f0f8ff;
+}
+#settingPopup input[type="range"] {
+  width: 160px;
+  margin-left: 10px;
+  vertical-align: middle;
+}
+
+#score {
+  font-size: 1.5rem;
+  margin: 10px 0;
+  z-index: 2;
+}
