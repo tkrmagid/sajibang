@@ -22,7 +22,7 @@ const USER_SONGS = [
     },
     chart: CHART_test,
   },
-]
+];
 
 
 /** @type {import('./@types/songs.type.js').SongData[]} */
@@ -49,7 +49,7 @@ const DEFAULT_SONGS = [
     },
     chart: [],
   },
-]
+];
 
 /** @type {import('./@types/songs.type.js').SongData[]} */
 const SONGS = [...USER_SONGS, ...DEFAULT_SONGS];

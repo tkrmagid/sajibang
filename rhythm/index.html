@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>rhythm</title>
-  <!-- ./js/jwplayer/jwplayer.js 2225 var t = "./js/jwplayer/"; -->
+  <!-- ./jwplayer/jwplayer.js 2225 var t = "./jwplayer/"; -->
+  <!-- ./jwplayer/jwplayer.js 5193 jwpsrv: " disabled -->
   <script type="text/javascript" src="./jwplayer/jwplayer.js"></script>
   <script>jwplayer.key = "Bch7bd0cZt0adCRYHGveauTP1LaJlq1EMyrU/IxgfrGDc3gTqZxyPFEKKMI";</script>
   <script type="text/javascript" src="./jwplayer/provider.hlsjs.js"></script>
@@ -19,6 +20,7 @@
     <div class="buttons">
       <button id="startButton">시작하기</button>
       <button id="correctionButton">보정하기</button>
+      <button id="correctionResetButton">보정초기화</button>
       <button id="settingButton">설정</button>
       <button id="customButton" style="display: none;">만들기</button>
       <p id="correction">보정값 : 0ms</p>
@@ -33,6 +35,9 @@
     <p class="title">노래를 선택하세요</p>
     <button id="mainButton">돌아가기</button>
     <ul id="songList" class="song-list"></ul>
+  </div>
+  <div class="loading" id="loadingScreen" style="display: none;">
+    <p style="font-size: 2rem; font-weight: bold;">로딩중...</p>
   </div>
   <div class="gameDIV" id="gameDIV" style="display: none;">
     <div id="gameTimer"></div>

@@ -1,3 +1,4 @@
+var i=0, j=0;
 var DEV = false;
 function DEVON() {
   DEV = true;
@@ -33,11 +34,13 @@ class GameClass {
 
 
   // 판정 거리 (히트라인으로부터의 픽셀)
-  perfectDistance = 30;
-  greatDistance = 60;
-  badDistance = 90;
-  missDistance = 90; // 너무 멀리있는데 인식되는걸 방지하기위해서
+  perfectDistance = 50;
+  greatDistance = 100;
+  badDistance = 150;
+  missDistance = 150; // 너무 멀리있는데 인식되는걸 방지하기위해서
 
+  // 롱노트 점수
+  longNoteHoldScoreFps = 10; // 롱노트 점수 추가 (프레임당)
 
 
   // 메뉴 관련
@@ -49,6 +52,7 @@ class GameClass {
   // 버튼 관련
   startButton = document.getElementById('startButton');
   correctionButton = document.getElementById('correctionButton');
+  correctionResetButton = document.getElementById('correctionResetButton');
   customButton = document.getElementById('customButton');
   mainButton = document.getElementById('mainButton');
   backButton = document.getElementById('backButton');
@@ -61,6 +65,9 @@ class GameClass {
   // 노래선택 관련
   songSelection = document.getElementById('songSelection');
   songList = document.getElementById('songList');
+
+  // 로딩 관련
+  loadingScreen = document.getElementById('loadingScreen');
 
   // 게임 관련
   gameDIV = document.getElementById('gameDIV');
@@ -117,7 +124,6 @@ class GameClass {
   feedbackTimeout = null; // 피드백 타임아웃
   spawnTimeoutList = []; // 노트 생성 타임아웃 리스트
   hitEffects = [null, null, null, null]; // 히트 이펙트 배열
-  laneEffects = [null, null, null, null]; // 레인 이펙트 배열
   makeCharts = [];
   
   keys = JSON.parse(window.localStorage.getItem('keys'));
@@ -133,7 +139,7 @@ class GameClass {
     this.volumeSlider.value = Number(window.localStorage.getItem('volume'));
     this.volumeValue.textContent = this.volumeSlider.value;
     this.noteSpeedSlider.value = this.noteSpeed;
-    this.noteSpeedValue.textContent = noteSpeedSlider.value;
+    this.noteSpeedValue.textContent = this.noteSpeedSlider.value;
     this.correctionElement.textContent = `보정값: ${this.correctionValue}ms`;
 
     this.init();
@@ -156,15 +162,22 @@ class GameClass {
       this.correctionValue = 0;
       this.initSong.call(this, 'correction');
     });
+    this.correctionResetButton.addEventListener('click', () => {
+      if (DEV) console.log('보정 초기화');
+      this.correctionList = [];
+      this.correctionValue = 0;
+      this.correctionElement.textContent = `보정값: ${this.correctionValue}ms`;
+      window.localStorage.setItem('correction', this.correctionValue.toString());
+    });
     this.customButton.addEventListener('click', () => {
       if (DEV) console.log('유저 노트 생성');
       this.makeButton.style.display = 'block';
       this.initSong.call(this, 'makeNote');
     });
     this.settingButton.addEventListener('click', () => {
-      for (let i in this.keyInputs) this.keyInputs[i].value = this.keys[i];
+      for (i in this.keyInputs) this.keyInputs[i].value = this.keys[i];
       this.noteSpeedSlider.value = this.noteSpeed;
-      this.noteSpeedValue.value = this.noteSpeed;
+      this.noteSpeedValue.textContent = this.noteSpeed;
       this.settingPopup.style.display = 'block';
       this.backdrop.style.display = 'block';
     });
@@ -199,7 +212,7 @@ class GameClass {
     if (this.gameTimerInterval !== null) clearInterval(this.gameTimerInterval);
     if (this.gameFrameId !== null) cancelAnimationFrame(this.gameFrameId);
     if (this.feedbackTimeout !== null) clearTimeout(this.feedbackTimeout);
-    if (this.spawnTimeoutList.length !== 0) for (let id of this.spawnTimeoutList) clearTimeout(id);
+    if (this.spawnTimeoutList.length !== 0) for (i of this.spawnTimeoutList) clearTimeout(i);
 
     this.player = null;
     this.gameEndTime = 0;
@@ -216,10 +229,10 @@ class GameClass {
     this.feedbackTimeout = null;
     this.spawnTimeoutList = [];
     this.hitEffects = [null, null, null, null];
-    this.laneEffects = [null, null, null, null];
     this.activeKeys.clear();
     this.makeCharts = [];
 
+    this.loadingScreen.style.display = 'none';
     this.menu.style.display = 'block';
     this.songSelection.style.display = 'none';
     this.gameDIV.style.display = 'none';
@@ -257,6 +270,7 @@ class GameClass {
       this.player.seek(startTime);
       this.player.play(true);
       this.startTimer();
+      this.loadingScreen.style.display = 'none';
       this.gameFrameId = requestAnimationFrame(this.loopGame.bind(this));
     }.bind(this));
 
@@ -284,6 +298,7 @@ class GameClass {
       return;
     }
     this.gameRunning = true;
+    this.loadingScreen.style.display = 'flex';
     this.menu.style.display = 'none';
     this.songSelection.style.display = 'none';
     this.gameDIV.style.display = 'block';
@@ -296,6 +311,7 @@ class GameClass {
     } else {
       this.gameEndTime = this.gameSong.song.endTime + 5; // 기본적으로 5초 추가
       this.startTimer();
+      this.loadingScreen.style.display = 'none';
       this.gameFrameId = requestAnimationFrame(this.loopGame.bind(this));
     }
   }
@@ -331,19 +347,22 @@ class GameClass {
     this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
 
     this.drawLanes();
-    for (let i=0; i<this.noteSpeed; i++) {
+    for (j=0; j<4; j++) {
+      this.drawLaneEffect(j);
+      this.drawHitEffect(j);
+    }
+    for (i=0; i<this.noteSpeed; i++) {
       this.drawNotes();
       this.drawHitLine();
       this.drawFeedback();
-      for (let j=0; j<4; j++) {
-        this.drawLaneEffect(j);
-        this.drawHitEffect(j);
-        this.drawKeyboard(j);
-      }
+      for (j=0; j<4; j++) this.drawKeyboard(j);
 
       // 롱노트 누르고있을때
       this.notes.forEach(function(note, index) {
-        if (note.type === 'start' && note.isActive) this.processHold(note, index);
+        if (note.type === 'start' && note.isActive) {
+          note.holdTime += 1;
+          if (note.holdTime % (this.noteSpeed*this.longNoteHoldScoreFps) === 0) this.processHold(note, index);
+        }
       }.bind(this));
     }
 
@@ -372,37 +391,42 @@ class GameClass {
   }
 
   spawnNotes() {
-    for (let index in this.gameSong.chart) {
+    let noteId = 0;
+    for (const note of this.gameSong.chart) {
       if (!this.gameRunning) break;
-      const note = this.gameSong.chart[index];
-      if (!this.spawnTimeoutList[index]) this.spawnTimeoutList[index] = null;
-      this.spawnTimeoutList[index] = setTimeout(function() {
-        if (!this.gameRunning) return;
-        this.notes.push({
-          id: index,
-          lane: note.lane,
-          y: -100,
-          type: 'start',
-          time: note.time,
-          endTime: note.endTime || null, // 롱노트 여부 확인
-          isActive: false, // 롱노트 활성화 여부
-          holdScore: '', // 롱노트 점수
-        });
-        if (!note.endTime) return;
-        this.spawnTimeoutList[index] = setTimeout(function() {
+      this.spawnTimeoutList.push(
+        setTimeout(function() {
           if (!this.gameRunning) return;
           this.notes.push({
-            id: index,
+            id: noteId++,
             lane: note.lane,
             y: -100,
-            type: 'end',
-            time: note.endTime,
-            endTime: note.endTime,
-            isActive: false,
-            holdScore: '',
+            type: 'start',
+            time: note.time,
+            endTime: note.endTime || null, // 롱노트 여부 확인
+            isActive: false, // 롱노트 활성화 여부
+            holdScore: '', // 롱노트 점수
+            holdTime: 0, // 롱노트 유지 시간
           });
-        }.bind(this), note.endTime - note.time);
-      }.bind(this), note.time);
+          if (!note.endTime) return;
+          this.spawnTimeoutList.push(
+            setTimeout(function() {
+              if (!this.gameRunning) return;
+              this.notes.push({
+                id: noteId++,
+                lane: note.lane,
+                y: -100,
+                type: 'end',
+                time: note.endTime,
+                endTime: note.endTime,
+                isActive: false,
+                holdScore: '',
+                holdTime: 0, // 롱노트 유지 시간
+              });
+            }.bind(this), note.endTime - note.time)
+          );
+        }.bind(this), note.time)
+      );
     }
   }
 
@@ -412,7 +436,7 @@ class GameClass {
   }
 
   drawLanes() {
-    for (let i=0; i<4; i++) {
+    for (i=0; i<4; i++) {
       this.ctx.fillStyle = i%2===0 ? '#ddd' : '#ccc';
       this.ctx.fillRect(i*this.laneWidth, 0, this.laneWidth, this.canvasHeight);
     }
@@ -436,8 +460,8 @@ class GameClass {
       lane*this.laneWidth,
       this.keyboardY+this.keyboardHeight
     );
-    gradient.addColorStop(0, 'rgba(255, 100, 100, 0.8'); // 밝은 빨간색
-    gradient.addColorStop(1, 'rgba(255, 0, 0, 0.2'); // 어두운 빨간색
+    gradient.addColorStop(0, 'rgba(255, 100, 100, 0.8)'); // 밝은 빨간색
+    gradient.addColorStop(1, 'rgba(255, 0, 0, 0.2)'); // 어두운 빨간색
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(lane*this.laneWidth, this.keyboardY, this.laneWidth, this.keyboardHeight);
   }
@@ -446,7 +470,7 @@ class GameClass {
     this.notes.forEach((note, index) => {
       note.y += 1;
       const noteX = note.lane * this.laneWidth + 10;
-      const addY = -this.correctionValue;
+      const addY = this.correctionValue;
 
       if (note.endTime && note.type === 'start') { // 롱노트 시작 노트
         const startY = note.isActive ? this.hitLineY : note.y;
@@ -506,29 +530,8 @@ class GameClass {
 
   drawLaneEffect(lane) {
     if (!this.activeKeys.has(lane)) return;
-    // 효과가 천천히 밝아지도록 시간 기록
-    if (!this.laneEffects[lane]) this.laneEffects[lane] = Date.now();
-    const elapsed = Math.min((Date.now() - this.laneEffects[lane])/100, 1);
-
-    const x = lane * this.laneWidth;
-    const width = this.laneWidth;
-    const maxHeight = this.keyboardY;
-    const effectHeight = maxHeight * 0.8; // 빛의 범위(조절 가능)
-    const y = this.keyboardY - effectHeight;
-    // 그라데이션 생성 (아래에서 위로)
-    const gradient = this.ctx.createLinearGradient(
-      x, this.keyboardY, x, y
-    );
-    const color = '255,150,150';
-    gradient.addColorStop(0, `rgba(${color},${0.3*elapsed})`);
-    gradient.addColorStop(0.7, `rgba(${color},${0.15*elapsed})`);
-    gradient.addColorStop(1, `rgba(${color},0)`);
-
-    this.ctx.save();
-    this.ctx.globalAlpha = this.effectTransparentcy * 2; // 좀 더 밝게
-    this.ctx.fillStyle = gradient;
-    this.ctx.fillRect(x, y, width, effectHeight);
-    this.ctx.restore();
+    this.ctx.fillStyle = 'rgba(255, 100, 100, 0.3)'; // 연한 빨간색
+    this.ctx.fillRect(lane*this.laneWidth, 0, this.laneWidth, this.keyboardY);
   }
 
   drawFeedback() {
@@ -578,7 +581,6 @@ class GameClass {
     const lane = this.keys.indexOf(event.key);
     if (lane === -1) return;
     this.activeKeys.delete(lane);
-    this.laneEffects[lane] = null; // 이펙트 초기화
     if (this.gameSong.name === 'correction') return; // 보정 모드
     const noteIndex = this.notes.findIndex(note => note.lane === lane);
     if (noteIndex === -1) return;
@@ -611,6 +613,9 @@ class GameClass {
         this.missCount++;
         this.showFeedback('Miss');
       }
+    } else if (this.gameSong.name === 'correction') {
+      this.notes.splice(index, 1);
+      this.showFeedback(this.correctionList[this.correctionList.length-1]+'ms');
     } else { // 일반 노트 처리
       if (distance <= this.perfectDistance) {
         this.notes.splice(index, 1);
@@ -656,9 +661,8 @@ class GameClass {
 
   processHold(note, index) {
     const endNoteIndex = this.notes.findIndex(n => n.lane === note.lane && n.type === 'end' && n.time === note.endTime);
-    if (endNoteIndex === -1) return;
-    const endNote = this.notes[endNoteIndex];
-    if (endNote.y-this.hitLineY > this.badDistance) { // 롱노트가 화면을 벗어나면 Miss 처리
+    const endNote = endNoteIndex !== -1 ? this.notes[endNoteIndex] : null;
+    if (endNote && endNote.y-this.hitLineY > this.badDistance) { // 롱노트가 화면을 벗어나면 Miss 처리
       this.notes.splice(index, 1);
       this.notes.splice(endNoteIndex, 1);
       this.missCount++;
