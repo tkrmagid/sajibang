@@ -1,14 +1,40 @@
+/**
+ * @typedef {Object} Note 노트
+ * @property {number} id - 노트ID
+ * @property {number} lane - 선 번호
+ * @property {number} y - 노트 높이
+ * @property {"start" | "end"} type - 노트 타입
+ * @property {number} time - 노트 시간
+ * @property {number | null} endTime - 롱노트 끝 시간
+ * @property {boolean} isActive - 롱노트 활성화 여부
+ * @property {string} holdScore - 롱노트 유지 점수
+ * @property {string} holdTime - 롱노트 유지 시간
+ */
+
 var i=0, j=0;
+var AUTO = false;
 var DEV = false;
+function AUTOON() {
+  AUTO = true;
+  document.querySelector('#menu > p').innerHTML = '리듬게임<br />(오토모드)';
+  document.querySelector('#songSelection > p').innerHTML = '노래를 선택하세요<br />(오토모드)';
+  return '오토모드 : ON';
+}
+function AUTOOFF() {
+  AUTO = false;
+  document.querySelector('#menu > p').innerHTML = '리듬게임';
+  document.querySelector('#songSelection > p').innerHTML = '노래를 선택하세요';
+  return '오토모드 : OFF';
+}
 function DEVON() {
   DEV = true;
   document.getElementById('customButton').style.display = 'block';
-  console.log('개발자모드 : ON');
+  return '개발자모드 : ON';
 }
 function DEVOFF() {
   DEV = false;
   document.getElementById('customButton').style.display = 'none';
-  console.log('개발자모드 : OFF');
+  return '개발자모드 : OFF';
 }
 
 function formatTime(time) {
@@ -27,7 +53,8 @@ class GameClass {
   // 유저 설정
   hitLineHeight = 190; // 히트라인 높이 (캔버스 아래에서부터의 거리)
   keyboardHeight = 120; // 키보드 높이 (캔버스 아래에서부터의 거리)
-  feedbackDuration = 5000; // 피드백 지속 시간 (ms)
+  startDelay = 2000; // 시작 딜레이 (ms)
+  feedbackDuration = 2000; // 피드백 지속 시간 (ms)
   effectSize = 15; // 이펙트 크기
   effectDuration = 100; // 이펙트 지속 시간 (ms)
   effectTransparentcy = 0.2; // 이펙트 투명도 (1.0 불투명)
@@ -111,6 +138,7 @@ class GameClass {
   gameTimerInterval = null; // 게임 타이머 인터벌
   gameFrameId = null; // 게임 프레임 ID
   gameSong = null; // 게임 노래
+  /** @type {Note[]} */
   notes = []; // 노트 배열
   perfectCount = 0; // 완벽 카운트
   greatCount = 0; // 좋음 카운트
@@ -202,8 +230,12 @@ class GameClass {
     this.settingCloseButton.addEventListener('click', this.init.bind(this));
 
 
-    document.addEventListener('keydown', this.eventKeydown.bind(this));
-    document.addEventListener('keyup', this.eventKeyup.bind(this));
+    document.addEventListener('keydown', function(event) {
+      if (!AUTO) this.eventKeydown.call(this, event);
+    }.bind(this));
+    document.addEventListener('keyup', function(event) {
+      if (!AUTO) this.eventKeyup.call(this, event);
+    }.bind(this));
   }
 
   init() {
@@ -380,7 +412,7 @@ class GameClass {
       if (!this.gameRunning) return;
       this.spawnNotes.call(this);
       this.gameTimerInterval = setInterval(this.loopTimer.bind(this), 10);
-    }.bind(this), 1000); // 1초 후에 노트 생성 시작
+    }.bind(this), this.startDelay); // startDelay초 후에 노트 생성 시작
   }
 
   loopTimer() {
@@ -412,6 +444,7 @@ class GameClass {
           this.spawnTimeoutList.push(
             setTimeout(function() {
               if (!this.gameRunning) return;
+              if (this.notes.findIndex(n => n.lane === note.lane && n.endTime === note.endTime && n.type === 'start') === -1) return;
               this.notes.push({
                 id: noteId++,
                 lane: note.lane,
@@ -485,15 +518,17 @@ class GameClass {
         this.ctx.fillRect(noteX, startY-this.noteHeight/2+addY, this.noteWidth, this.noteHeight);
 
         // 롱노트가 화면을 벗어나면 Miss 처리
-        if (endY > this.canvasHeight) {
-          this.notes.splice(index, 1);
+        if (startY+addY > this.canvasHeight) {
           this.notes.splice(endNoteIndex, 1);
+          this.notes.splice(index, 1);
           this.missCount++;
           this.showFeedback('Miss');
         }
+        if (AUTO && note.y === this.hitLineY) this.eventKeydown({ key: this.keys[note.lane] });
       } else if (note.endTime && note.type === 'end') { // 롱노트 끝 노트
         this.ctx.fillStyle = '#00cc00';
         this.ctx.fillRect(noteX, note.y-this.noteHeight/2+addY, this.noteWidth, this.noteHeight);
+        if (AUTO && note.y === this.hitLineY) this.eventKeyup({ key: this.keys[note.lane] });
       } else { // 일반 노트
         this.ctx.fillStyle = '#007bff';
         this.ctx.fillRect(noteX, note.y-this.noteHeight/2+addY, this.noteWidth, this.noteHeight);
@@ -504,6 +539,7 @@ class GameClass {
           this.missCount++;
           this.showFeedback('Miss');
         }
+        if (AUTO && note.y === this.hitLineY) this.eventKeydown({ key: this.keys[note.lane] });
       }
     });
   }
@@ -544,7 +580,7 @@ class GameClass {
   }
 
   showFeedback(text) {
-    this.feedbackText = text;
+    this.feedbackText = AUTO ? 'AUTO' : text;
     clearTimeout(this.feedbackTimeout);
     this.feedbackTimeout = setTimeout(function() {
       this.feedbackText = '';
@@ -574,6 +610,7 @@ class GameClass {
     }
 
     this.processHit(note, noteIndex, distance);
+    if (note.endTime === null) setTimeout(() => this.activeKeys.delete(lane), 70);
   }
 
   eventKeyup(event) {
@@ -582,11 +619,21 @@ class GameClass {
     if (lane === -1) return;
     this.activeKeys.delete(lane);
     if (this.gameSong.name === 'correction') return; // 보정 모드
-    const noteIndex = this.notes.findIndex(note => note.lane === lane);
-    if (noteIndex === -1) return;
-    const note = this.notes[noteIndex];
-    const distance = Math.abs(note.y-this.hitLineY);
-    this.processUp(note, noteIndex, distance);
+    const startNoteIndex = this.notes.findIndex(note => note.lane === lane && note.endTime);
+    if (startNoteIndex === -1) return;
+    const startNote = this.notes[startNoteIndex];
+    if (!(startNote.endTime && startNote.isActive && startNote.type === 'start')) return;
+    const endNoteIndex = this.notes.findIndex(note => note.lane === lane && note.time === startNote.endTime);
+    if (endNoteIndex === -1) {
+      if (endNoteIndex !== -1) this.notes.splice(endNoteIndex, 1);
+      this.notes.splice(startNoteIndex, 1);
+      this.missCount++;
+      this.showFeedback('Miss');
+      return;
+    }
+    const endNote = this.notes[endNoteIndex];
+    const distance = Math.abs(endNote.y-this.hitLineY);
+    this.processUp(startNoteIndex, endNoteIndex, distance);
   }
 
   processHit(note, index, distance) {
@@ -608,8 +655,8 @@ class GameClass {
         this.badCount++;
         this.showFeedback('Bad');
       } else if (distance > this.badDistance && note.isActive) {
-        this.notes.splice(index, 1);
         this.notes.splice(endNoteIndex, 1);
+        this.notes.splice(index, 1);
         this.missCount++;
         this.showFeedback('Miss');
       }
@@ -638,12 +685,10 @@ class GameClass {
     this.hitEffects[note.lane] = Date.now();
   }
 
-  processUp(note, index, distance) {
-    if (!(note.endTime && note.isActive && note.type === 'start')) return;
-    const endNoteIndex = this.notes.findIndex(n => n.lane === note.lane && n.type === 'end' && n.time === note.endTime);
-    if (endNoteIndex === -1) return;
-    this.notes.splice(index, 1);
+  processUp(startNoteIndex, endNoteIndex, distance) {
+    if (startNoteIndex === -1 || endNoteIndex === -1) return;
     this.notes.splice(endNoteIndex, 1);
+    this.notes.splice(startNoteIndex, 1);
     if (distance <= this.perfectDistance) {
       this.perfectCount++;
       this.showFeedback('Perfect');
@@ -663,8 +708,8 @@ class GameClass {
     const endNoteIndex = this.notes.findIndex(n => n.lane === note.lane && n.type === 'end' && n.time === note.endTime);
     const endNote = endNoteIndex !== -1 ? this.notes[endNoteIndex] : null;
     if (endNote && endNote.y-this.hitLineY > this.badDistance) { // 롱노트가 화면을 벗어나면 Miss 처리
-      this.notes.splice(index, 1);
       this.notes.splice(endNoteIndex, 1);
+      this.notes.splice(index, 1);
       this.missCount++;
       this.showFeedback('Miss');
     } else {
