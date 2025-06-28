@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "G-Sentry",
+  "version": "1.0",
+  "description": "군 위병출입통제를 위한 확장 도구",
+  "action": {
+    "default_icon": "front/icon.png"
+  },
+  "permissions": ["scripting", "tabs", "storage"],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "back/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.google.com/*"
+      ],
+      "js": [
+        "content/utils/utils.js",
+        "content/utils/jamo-utils.js",
+        "content/jsMain.js",
+        "content/choMain.js",
+        "content/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

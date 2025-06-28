@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head lang="ko">
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <button class="reload-button" id="reloadBtn" title="확장 새로고침">🔄</button>
+  <div class="title">G-Sentry</div>
+  <div class="toast-container">
+    <div class="toast" id="toast">
+      <div class="toast-icon">✔️</div>
+      <div class="toast-msg" id="toastMsg">알림</div>
+    </div>
+  </div>
+  <div class="switchs">
+    <div class="switch-container">
+      <span>JS실행</span>
+      <label class="switch">
+        <input type="checkbox" id="jsToggle" />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="switch-container">
+      <span>초성검색</span>
+      <label class="switch">
+        <input type="checkbox" id="choToggle" />
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+  <div id="main">
+    <div id="choContainer" style="display: none;">
+      <button class="save-button" id="saveBtn">저장</button>
+      <button class="reset-button" id="resetBtn">되돌리기</button>
+      <div id="choListContainer"></div>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+manifest_version 버전 (25.06.21 기준 최신:3)
+name 이름
+version 버전
+description 설명
+action 확장 아이콘 관련 설정
+- default_icon 확장 아이콘 이미지
+persissions 크롬 기능 권한
+- scripting js파일을 웹페이지에 삽입 가능
+- tabs 탭을 열거나 주소 확인, 조작 가능
+- storage chrome.storage api 사용해서 데이터 저장 가능
+host_permissions 접근할수있는 웹사이트 주소
+background: service_worker 백그라운드에서 계속 실행할 파일
+content_scripts 웹사이트에 자동으로 삽입할 js파일
+- matches 이 사이트 접속하면
+- run_at: document_idle 로딩 완료되면
+- js js파일 실행
