@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Poker Game</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="mainMenu">
+    <h1>텍사스 홀덤 포커</h1>
+
+    <div id="playerConfig">
+      <h2>플레이어 설정</h2>
+      <ul id="playerList"></ul>
+      <button id="addPlayer">+ 추가</button>
+      <button id="startGame" disabled>게임 시작</button>
+    </div>
+
+    <div id="gameConfig">
+      <h2>게임 설정</h2>
+      <label for="startingMoney">시작 자산 (원): </label>
+      <input type="number" id="startingMoney" name="startingMoney" value="10000" min="1000" step="1000" />
+    </div>
+  </div>
+
+  <div id="gameScreen" class="hidden">
+    <div id="table">
+      <!-- 플레이어 슬롯 -->
+      <div class="player-slot top-left" data-position="0"></div>
+      <div class="player-slot top-right" data-position="1"></div>
+      <div class="player-slot bottom-right" data-position="2"></div>
+      <div class="player-slot bottom-left" data-position="3"></div>
+
+      <!-- 공유 카드 -->
+      <div id="communityCards">
+        <!-- 카드 5장이 들어갈 자리 -->
+      </div>
+
+      <!-- 조작 영역 -->
+      <div id="controlPanel">
+        <div id="gameLog"></div>
+        <div id="actionButtons">
+          <div id="raiseUI" class="hidden">
+            <input type="number" name="raiseMoney" id="raiseMoney" placeholder="레이즈 금액" min="0" />
+            <button id="raiseConfirm">확인</button>
+          </div>
+          
+          <button data-action="fold">폴드</button>
+          <button data-action="call">콜(체크)</button>
+          <button data-action="raise">레이즈</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,251 @@
+/* style.css */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #1e1e2f;
+  color: white;
+  text-align: center;
+}
+
+.hidden {
+  display: none;
+}
+
+#raiseUI {
+  margin-top: 10px;
+  align-items: center;
+  gap: 8px;
+}
+input[type="number"] {
+  width: 120px;
+  padding: 6px 10px;
+  font-size: 16px;
+  border: 2px solid #444;
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+input[type="number"]:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 4px #007bff88;
+}
+#raiseConfirm {
+  background-color: #007bff;
+  transition: background-color 0.2s;
+}
+#raiseConfirm:hover {
+  background-color: #0056b3;
+}
+
+#mainMenu {
+  padding: 2rem;
+}
+
+#playerList {
+  margin: 1rem auto;
+  list-style: none;
+  padding: 0;
+  max-width: 300px;
+}
+
+.player-item {
+  background: #2a2a3d;
+  padding: 0.5rem 1rem;
+  margin: 0.25rem 0;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  font-size: 1rem;
+}
+
+.player-item.fixed {
+  background: #444;
+  font-weight: bold;
+}
+
+.player-item select {
+  margin-left: 1rem;
+}
+
+.remove-btn {
+  background: red;
+  border: none;
+  color: white;
+  cursor: pointer;
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.9rem;
+  height: 28px;
+}
+
+button {
+  margin: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+button:disabled {
+  background: gray;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#gameScreen {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#gameLog {
+  position: absolute;
+  top: 10px;
+  left: calc(300px + 45px);
+  right: calc(300px + 45px);
+  height: 200px;
+  margin: 0 auto;
+  overflow-y: auto;
+  background: #1a1a1a;
+  color: #e0e0e0;
+  padding: 1rem;
+  font-family: monospace;
+  font-size: 0.9rem;
+  border: 1px solid #333;
+  border-radius: 5px;
+  text-align: left;
+}
+
+.player-slot {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  padding: 0.5rem;
+  background-color: rgba(0, 0, 0, 0.5);
+  border: 2px solid white;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.player-slot.hidden {
+  display: none;
+}
+.player-slot.turn {
+  border: 4px solid aqua;
+}
+.player-slot.fold {
+  color: gray;
+}
+
+#playerCards {
+  perspective: 1000px;
+  width: 220px;
+  height: 160px;
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+}
+#playerCards svg {
+  width: 100px;
+  height: 140px;
+}
+#playerCards .card {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.5s;
+}
+#playerCards .card.flip {
+  transform: rotateY(180deg);
+}
+#playerCards .card-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+}
+#playerCards .card-front {
+  transform: rotateY(180deg);
+}
+#playerCards .card-back {
+  transform: rotateY(0deg);
+}
+
+#handOpen {
+  margin: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.9rem;
+}
+#handOpen.holding {
+  background-color: crimson;
+  color: white;
+  animation: pulse 1s infinite;
+}
+@keyframes pulse {
+  0% { box-shadow: 0 0 5px crimson; }
+  50% { box-shadow: 0 0 20px crimson; }
+  100% { box-shadow: 0 0 5px crimson; }
+}
+
+.top-left { top: 10px; left: 10px; }
+.top-right { top: 10px; right: 10px; }
+.bottom-left { bottom: 10px; left: 10px; }
+.bottom-right { bottom: 10px; right: 10px; }
+
+#communityCards {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(calc(-50% - 90px), -50%);
+  display: flex;
+  justify-content: center;
+  gap: 170px;
+  perspective: 1000px;
+}
+#communityCards svg {
+  width: 150px;
+  height: 210px;
+}
+#communityCards .card {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.5s;
+}
+#communityCards .card.flip {
+  transform: rotateY(180deg);
+}
+#communityCards .card-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+}
+#communityCards .card-front {
+  transform: rotateY(180deg);
+}
+#communityCards .card-back {
+  transform: rotateY(0deg);
+}
+
+#actionButtons {
+  position: absolute;
+  bottom: 5rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.poker-card {
+  width: 80px;
+  height: 112px;
+  margin: 4px;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
