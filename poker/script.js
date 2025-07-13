@@ -5,13 +5,16 @@
 /**
  * @typedef {Object} Player 플레이어
  * @property {Player.Type} type 타입
- * @property {{ suit: Card.Suit; rank: Card.Rank; }[]} hand 손패
+ * @property {Card.Hand[]} hand 손패
  * @property {number} money 돈
  * @property {boolean} first 첫번째인지
  * @property {{ bet: number; check: boolean; fold: boolean; }} game 게임 관련
  */
 /**
  * // 카드 관련
+ * @typedef {{ rank: number; name: string; hand: Card.Value[]; kickers: any[]; }} Card.Evaluate 카드 족보 확인
+ * @typedef {{ suit: Card.Suit; rank: Card.Rank; }} Card.Hand 손패
+ * @typedef {{ suit: Card.Suit; rank: Card.Rank; value: number; }} Card.Value 손패(value포함)
  * @typedef {'♠'|'♥'|'♦'|'♣'} Card.Suit 모양
  * @typedef {'2'|'3'|'4'|'5'|'6'|'7'|'8'|'9'|'10'|'J'|'Q'|'K'|'A'} Card.Rank 숫자
  * @typedef {"red"|"black"} Card.Color 색깔
@@ -90,7 +93,7 @@ class GameClass {
   startingMoney = -1;
   /** @type {string[]} 카드 전체 덱 */
   deck = [];
-  /** @type {string[]} 커뮤니티 카드 */
+  /** @type {Card.Hand[]} 커뮤니티 카드 */
   communityCards = [];
   /** @type {number} 현재 배팅 금액 */
   currentBet = 0;
@@ -189,8 +192,8 @@ class GameClass {
       const card1 = Array.from(this.deck.pop());
       const card2 = Array.from(this.deck.pop());
       this.players[i].hand = [
-        { suit: card1[0], rank: card1[2] ? 10 : card1[1] },
-        { suit: card2[0], rank: card2[2] ? 10 : card2[1] },
+        { suit: card1[0], rank: card1[2] ? "10" : card1[1] },
+        { suit: card2[0], rank: card2[2] ? "10" : card2[1] },
       ];
     }
 
@@ -338,13 +341,8 @@ class GameClass {
       this.#betButtons.forEach(btn => btn.disabled = true);
       this.currentBet = 0;
       this.players.filter(p => !p.game.fold).forEach(p => p.game.check = false);
-      if (this.communityCards.length === 5) {
-        // 비교하고 종료시켜야됨
-        // 코드 추가할것
-        return;
-      }
-      this.setCommunityCard();
-      return;
+      if (this.communityCards.length === 5) return this.showDown();
+      return this.setCommunityCard();
     }
     // 아직 한바퀴 덜돔
     this.nowPlayerIndex = nextPlayerIndex;
@@ -362,7 +360,7 @@ class GameClass {
     if (this.communityCards.length === 0) getNum = 3;
     for (let i=0; i<getNum; i++) {
       const card = this.deck.pop();
-      this.communityCards.push(card);
+      this.communityCards.push({ suit: card[0], rank: card[2] ? "10" : card[1] });
       const cardDIV = document.createElement("div");
       cardDIV.className = "card";
       cardDIV.id = `card${this.communityCards.length+i+1}`;
@@ -399,6 +397,216 @@ class GameClass {
       i = (i + 1) % len;
     }
     return this.nowPlayerIndex;
+  }
+
+  /**
+   * 남은 플레이어 패 비교
+   */
+  showDown() {
+    this.log("딜러", "패 확인");
+    let indexList = this.players.map((p, i) => !p.game.fold ? i : -1).filter(i => i !== -1);
+    let idx = indexList.indexOf(this.nowPlayerIndex);
+    if (idx !== -1) indexList = indexList.slice(idx).concat(indexList.slice(0, idx));
+    /** @type {{[key: number]: Card.Evaluate}} */
+    const hands = {};
+    for (let i of indexList) hands[i] = this.evaluateHand(this.players[i].hand);
+    const winnerIndex = this.compareHands(hands);
+    for (let i=0; i<indexList.length; i++) {
+      this.setTimeoutList.push(setTimeout(function() {
+        // 여기에 코드추가
+        // 순차적으로 카드가 공개되게 수정
+        // + 승자도 표시되게 아래 코드 옮기기
+      }.bind(this), (i+1)*1000));
+    }
+    console.log('플레이어 전체',hands);
+    console.log('승자: 플레이어',winnerIndex+1);
+    console.log('승자 정보',hands[winnerIndex]);
+    this.log("딜러", `플레이어 ${winnerIndex+1} 승리: ${hands[winnerIndex].name} ${hands[winnerIndex].hand.map(c => c.suit+c.rank).join(',')}`);
+  }
+
+  /**
+   * 카드 판정
+   * @param {Card.Hand[]} cards 손패 리스트
+   * @returns {Card.Evaluate}
+   */
+  evaluateHand(cards) {
+    /** @type {Card.Value[]} 내림차순 정렬 */
+    const parsed = cards.concat(this.communityCards).map(c => ({
+      ...c,
+      value: c.rank === 'J' ? 11
+      : c.rank === 'Q' ? 12
+      : c.rank === 'K' ? 13
+      : c.rank === 'A' ? 14
+      : parseInt(c.rank)
+    })).sort((a,b) => b.value-a.value);
+
+    /** @type {Map<Card.Rank, Card.Value[]>} */
+    const byRank = new Map();
+    /** @type {Map<Card.Suit, Card.Value[]>} */
+    const bySuit = new Map();
+
+    for (const c of parsed) {
+      if (!byRank.has(c.rank)) byRank.set(c.rank, []);
+      if (!bySuit.has(c.suit)) bySuit.set(c.suit, []);
+      byRank.get(c.rank).push(c);
+      bySuit.get(c.suit).push(c);
+    }
+
+    const rankGroups = [...byRank.values()].sort((a,b) => 
+      b.length-a.length || b[0].value - a[0].value
+    );
+
+    const flushGroup = [...bySuit.values()].find(g => g.length >= 5);
+
+    const uniqueValues = [...new Set(parsed.map(c => c.value))];
+    if (uniqueValues.includes(14)) uniqueValues.push(1); // A는 1도 가능
+
+    const straight = this.findStraight(uniqueValues);
+
+    // 스트레이트 플러시 & 로열 스트레이트 플러시
+    if (flushGroup) {
+      const flushUnique = [...new Set(flushGroup.map(c => c.value).sort((a,b) => b-a))];
+      if (flushUnique.includes(14)) flushUnique.push(1); // A는 1도 가능
+      const sf = this.findStraight(flushUnique);
+      if (sf) return {
+        rank: sf[0] === 14 ? 10 : 9,
+        name: sf[0] === 14 ? "로열 스트레이트 플러시" : "스트레이트 플러시",
+        hand: flushGroup.filter(c => sf.includes(c.value)).slice(0, 5),
+        kickers: [],
+      };
+    }
+
+    // 포카드
+    if (rankGroups[0].length === 4) {
+      const hands = [...rankGroups[0]];
+      return {
+        rank: 8,
+        name: "포카드",
+        hand: hands,
+        kickers: [...parsed.find(c => c.rank !== hands.rank)],
+      };
+    }
+
+    // 풀하우스
+    if (rankGroups[0].length === 3 && rankGroups[1]?.length >= 2) return {
+      rank: 7,
+      name: "풀하우스",
+      hand: [...rankGroups[0], ...rankGroups[1].slice(0,2)],
+      kickers: [],
+    };
+
+    // 플러시
+    if (flushGroup) {
+      const hands = flushGroup.slice(0,5);
+      return {
+        rank: 6,
+        name: "플러시",
+        hand: hands,
+        kickers: parsed.filter(c => !hands.includes(c)).map( c => c.value),
+      };
+    }
+
+    // 스트레이트
+    if (straight) {
+      const straightCards = [];
+      for (let v of straight) {
+        const c = parsed.find(c => c.value === v && !straightCards.includes(c));
+        straightCards.push(c);
+      }
+      return {
+        rank: 5,
+        name: "스트레이트",
+        hand: straightCards,
+        kickers: [],
+      };
+    }
+
+    // 트리플
+    if (rankGroups[0].length === 3) {
+      const hands = [...rankGroups[0]];
+      return {
+        rank: 4,
+        name: "트리플",
+        hand: hands,
+        kickers: parsed.filter(c => c.rank !== hands[0].rank).map(c => c.value),
+      };
+    }
+
+    // 투페어
+    if (rankGroups[0].length === 2 && rankGroups[1]?.length === 2) {
+      const hands = [...rankGroups[0], ...rankGroups[1]];
+      return {
+        rank: 3,
+        name: "투페어",
+        hand: hands,
+        kickers: parsed.filter(c => c.rank !== rankGroups[0][0].rank && c.rank !== rankGroups[1][0].rank).map(c => c.value),
+      };
+    }
+
+    // 원페어
+    if (rankGroups[0].length === 2) {
+      const hands = [...rankGroups[0]];
+      return {
+        rank: 2,
+        name: "원페어",
+        hand: hands,
+        kickers: parsed.filter(c => c.rank !== hands[0].rank).slice(0,3).map( c=> c.value),
+      };
+    }
+
+    // 하이카드
+    return {
+      rank: 1,
+      name: "하이카드",
+      hands: parsed.slice(0,5),
+      kickers: parsed.slice(5).map(c => c.value),
+    };
+  }
+
+  /**
+   * 스트레이트인지 확인
+   * @param {number[]} values value 리스트
+   * @returns {number[]|null}
+   */
+  findStraight(values) {
+    for (let i=0; i<=values.length-5; i++) {
+      const slice = values.slice(i, i+5);
+      if (slice[0]-slice[4] === 4 && new Set(slice).size === 5) return slice;
+    }
+    return null;
+  }
+
+  /**
+   * 카드를 비교해서 이긴 플레이어의 인덱스 번호를 출력
+   * @param {{[key: number]: Card.Evaluate}} handObj key: players index, value: evaluate return
+   * @returns {number}
+   */
+  compareHands(handObj) {
+    const players = Object.entries(handObj);
+
+    // 1. 우선순위: rank -> hand -> kickers
+    players.sort(([,a],[,b]) => {
+      if (a.rank !== b.rank) return b.rank - a.rank;
+      for (let i=0; i<5; i++) {
+        const av = a.hand[i]?.value || 0;
+        const bv = b.hand[i]?.value || 0;
+        if (av !== bv) return bv - av;
+      }
+      for (let i=0; i<Math.max(a.kickers.length, b.kickers.length); i++) {
+        const ak = a.kickers[i] || 0;
+        const bk = b.kickers[i] || 0;
+        if (ak !== bk) return bk - ak;
+      }
+
+      return 0; // 완벽히 동일
+    });
+    
+    const best = players[0][1];
+    return players.filter(([, p]) => 
+      p.rank === best.rank
+    && JSON.stringify(p.hand.map(c => c.value)) === JSON.stringify(best.hand.map(c => c.value))
+    && JSON.stringify(p.kickers) === JSON.stringify(best.kickers)
+    ).map(([i,]) => parseInt(i))[0];
   }
 }
 
