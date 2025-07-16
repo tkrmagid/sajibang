@@ -105,7 +105,7 @@ button:disabled {
   top: 10px;
   left: calc(300px + 45px);
   right: calc(300px + 45px);
-  height: 200px;
+  height: 17rem;
   margin: 0 auto;
   overflow-y: auto;
   background: #1a1a1a;
@@ -200,7 +200,7 @@ button:disabled {
 
 #communityCards {
   position: absolute;
-  top: 50%;
+  top: 22.5rem;
   left: 50%;
   transform: translate(calc(-50% - 90px), -50%);
   display: flex;
@@ -235,11 +235,51 @@ button:disabled {
   transform: rotateY(0deg);
 }
 
-#actionButtons {
+#pot {
   position: absolute;
-  bottom: 5rem;
+  top: 40rem;
   left: 50%;
   transform: translateX(-50%);
+  font-size: 1.2rem;
+}
+
+#actionButtons {
+  position: absolute;
+  bottom: 8rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.other-buttons {
+  position: absolute;
+  bottom: 3rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+#nextRound {
+  width: 200px;
+  height: 50px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+#nextRound:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+#nextRound:active:not(:disabled) {
+  transform: scale(0.97);
+}
+#nextRound:disabled {
+  background-color: #aaa;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .poker-card {

@@ -1,14 +1,16 @@
 /**
  * // 플레이어 관련
  * @typedef {"bot"|"human"} Player.Type 플레이어 타입
+ * @typedef {"aggressive"|"passive"|"neutral"} Player.Personality 봇 성향
  **/
 /**
  * @typedef {Object} Player 플레이어
  * @property {Player.Type} type 타입
+ * @property {Player.Personality} personality 성향 (봇)
  * @property {Card.Hand[]} hand 손패
  * @property {number} money 돈
  * @property {boolean} first 첫번째인지
- * @property {{ bet: number; check: boolean; fold: boolean; }} game 게임 관련
+ * @property {{ bet: number; check: boolean; fold: boolean; history: Bet.Action[]; }} game 게임 관련
  */
 /**
  * // 카드 관련
@@ -30,12 +32,25 @@ const max_players = 4;
 
 // 도구 함수들
 /**
+ * min~max 실수 랜덤
+ * @param {number} min 최소값
+ * @param {number} max 최대값
+ * @returns {number} 실수 랜덤값
+ */
+function random(min, max) {
+  if (min > max) throw new Error("random오류: min은 max보다 작거나 같아야 합니다.");
+  const buffer = new Uint32Array(1);
+  crypto.getRandomValues(buffer);
+  return min + (buffer[0] / 2 ** 32) * (max - min);
+}
+
+/**
  * min~max 정수 랜덤
  * @param {number} min 최소값
  * @param {number} max 최대값
  * @returns {number} 정수 랜덤값
  */
-function random(min, max) {
+function randomInt(min, max) {
   if (min > max) throw new Error("random오류: min은 max보다 작거나 같아야 합니다.");
   const range = max - min + 1;
   const maxUint32 = 2 ** 32;
@@ -52,6 +67,16 @@ function random(min, max) {
 }
 
 /**
+ * 주어진 숫자리르 지정한 단위로 반올림
+ * @param {number} value 값
+ * @param {number} unit 단위
+ * @returns {number} 출력값
+ */
+function roundToNearest(value, unit) {
+  return Math.round(value / unit) * unit;
+}
+
+/**
  * 리스트 셔플
  * @param {any[]} arr 섞을 리스트
  * @returns {any[]} 섞인 리스트
@@ -59,7 +84,7 @@ function random(min, max) {
 function shuffle(arr) {
   const result = [...arr];
   for (let i=result.length-1; i>0; i--) {
-    const j = this.random(0, i);
+    const j = this.randomInt(0, i);
     [result[i], result[j]] = [result[j], result[i]];
   }
   return result;
@@ -82,6 +107,8 @@ class GameClass {
   #raiseInput = document.getElementById("raiseMoney");
   #raiseConfirmBtn = document.getElementById("raiseConfirm");
   #communityCardsElements = document.getElementById("communityCards");
+  #potElement = document.getElementById("pot");
+  #nextRoundBtn = document.getElementById("nextRound");
 
   /** @type {Player[]} 플레이어 목록 */
   players = [];
@@ -89,6 +116,8 @@ class GameClass {
   firstPlayerIndex = -1;
   /** @type {number} 현재 플레이어 */
   nowPlayerIndex = -1;
+  /** @type {number} 승리 플레이어 */
+  winPlayerIndex = -1;
   /** @type {number} 시작 금액 */
   startingMoney = -1;
   /** @type {string[]} 카드 전체 덱 */
@@ -97,8 +126,14 @@ class GameClass {
   communityCards = [];
   /** @type {number} 현재 배팅 금액 */
   currentBet = 0;
+  /** @type {number} 판돈 */
+  pot = 0;
   /** @type {number[]} 타임아웃 리스트 */
   setTimeoutList = [];
+  /** @type {number} 카드 공개 딜레이 (ms) (def: 1000) */
+  openDelay = 1000;
+  /** @type {number[]} 봇 베팅 시간 [최소, 최대] */
+  botBetDelay = [500, 1500];
 
   /**
    * class new로 생성할때 자동 실행
@@ -128,6 +163,11 @@ class GameClass {
       this.#raiseUI.classList.add("hidden");
       this.betAction("raise");
     });
+
+    this.#nextRoundBtn.addEventListener("click", () => {
+      // 여기에 다음라운드 코드 작성
+      this.players[this.winPlayerIndex].money += this.pot;
+    });
   }
 
   /**
@@ -147,6 +187,8 @@ class GameClass {
    * 초기화
    */
   clear() {
+    this.currentBet = 0;
+    this.pot = 0;
     this.#slotElements.forEach((slot) => {
       slot.classList.remove("fold");
       slot.classList.remove("turn");
@@ -161,6 +203,22 @@ class GameClass {
       clearTimeout(id);
       this.setTimeoutList.splice(this.setTimeoutList.indexOf(id), 1);
     });
+  }
+
+  /**
+   * 타임아웃 리스트에 추가
+   * @param {Function} func 함수
+   * @param {number} time 시간
+   */
+  addTimeout(func, time) {
+    /** @type {number} timeout Id */
+    let timeoutId;
+    timeoutId = setTimeout(() => {
+      const idx = this.setTimeoutList.indexOf(timeoutId);
+      if (idx !== -1) this.setTimeoutList.splice(idx, 1);
+      func();
+    }, time);
+    this.setTimeoutList.push(timeoutId);
   }
 
   /**
@@ -239,21 +297,24 @@ class GameClass {
         handOpenBtn.id = "handOpen";
         handOpenBtn.textContent = "카드 확인하기";
         handOpenBtn.addEventListener("mousedown", () => {
-        handOpenBtn.textContent = "카드가 공개되어있습니다!";
+          if (handOpenBtn.disabled) return;
+          handOpenBtn.textContent = "카드가 공개되어있습니다!";
           handOpenBtn.classList.add("holding");
           for (let i=0; i<2; i++) cardsDIV.childNodes.forEach((card) => {
             card.classList.add("flip");
           });
         });
         handOpenBtn.addEventListener("mouseup", () => {
-        handOpenBtn.textContent = "카드 확인하기";
+          if (handOpenBtn.disabled) return;
+          handOpenBtn.textContent = "카드 확인하기";
           handOpenBtn.classList.remove("holding");
           for (let i=0; i<2; i++) cardsDIV.childNodes.forEach((card) => {
             card.classList.remove("flip");
           });
         });
         handOpenBtn.addEventListener("mouseleave", () => {
-        handOpenBtn.textContent = "카드 확인하기";
+          if (handOpenBtn.disabled) return;
+          handOpenBtn.textContent = "카드 확인하기";
           handOpenBtn.classList.remove("holding");
           for (let i=0; i<2; i++) cardsDIV.childNodes.forEach((card) => {
             card.classList.remove("flip");
@@ -279,7 +340,7 @@ class GameClass {
 
   /**
    * 베팅 버튼 클릭시
-   * @param {Bet.Action} action 
+   * @param {Bet.Action} action 액션
    */
   betAction(action) {
     this.#slotElements.item(this.nowPlayerIndex).classList.remove("turn");
@@ -294,6 +355,8 @@ class GameClass {
       const minus = this.currentBet - player.game.bet;
       player.money -= minus;
       player.game.bet = this.currentBet;
+      this.pot += minus;
+      this.#potElement.textContent = `판돈 : ${this.pot.toLocaleString()}원`;
       player.game.check = true;
       temp = `콜 ${minus}원`;
     } else if (action === "check") {
@@ -305,15 +368,24 @@ class GameClass {
       player.money -= raiseMoney;
       player.game.bet = raiseMoney;
       this.currentBet = raiseMoney;
-      this.players.filter(p => !p.game.fold).forEach(p => p.game.check = false);
+      this.pot += raiseMoney;
+      this.#potElement.textContent = `판돈 : ${this.pot.toLocaleString()}원`;
+      for (let i of this.players.map((p, i) => !p.game.fold && i !== this.nowPlayerIndex ? i : -1).filter(i => i !== -1)) this.players[i].game.check = false;
+      player.game.check = true;
       temp = `레이즈 ${raiseMoney}원`;
     }
 
     if (action === "skip") {
       // 다음 라운드 (공유카드 공개 후)
+      this.currentBet = 0;
+      this.players.filter(p => !p.game.fold).forEach((p) => {
+        p.game.bet = 0;
+        p.game.check = false;
+      });
       this.#betButtons.forEach(btn => btn.disabled = false);
     } else {
       // 공통처리
+      player.game.history.push(action);
       const playerMoneyDIV = this.#slotElements.item(this.nowPlayerIndex).querySelector("#money");
       const playerTempDIV = this.#slotElements.item(this.nowPlayerIndex).querySelector("#temp");
       playerMoneyDIV.textContent = `${player.money}원`;
@@ -323,25 +395,24 @@ class GameClass {
 
     const nextPlayerIndex = this.getNextPlayerIndex();
     if (this.players.filter(p => !p.game.fold).length === 1) {
-      // 혼자남음 종료할것
-      // 테스트코드
+      // 혼자 남았을때
       this.nowPlayerIndex = -1;
-      const winPlayerIndex = this.players.findIndex(p => !p.game.fold);
-      this.log("딜러", `플레이어 ${winPlayerIndex+1} 당신이 승리하셨습니다.`);
+      this.winPlayerIndex = this.players.findIndex(p => !p.game.fold);
+      this.log("딜러", `플레이어 ${this.winPlayerIndex+1} 당신이 승리하셨습니다.`);
+      this.log("딜러", `플레이어 ${this.winPlayerIndex+1} +${this.pot.toLocaleString()}원`);
+      this.#nextRoundBtn.disabled = false;
       return;
     }
     const nextPlayer = this.players[nextPlayerIndex];
-    if (
-      this.firstPlayerIndex === nextPlayerIndex
-      && this.players[this.firstPlayerIndex].game.check
-    ) {
-      // 한바퀴 돌아서 다시 돌아옴
-      // 테스트코드
+    if (!this.players.some(p => !p.game.fold && !p.game.check)) {
+      // check를 전부 했을때 (raise한 당사자도 check)
       this.#slotElements.item(this.nowPlayerIndex).classList.remove("turn");
       this.#betButtons.forEach(btn => btn.disabled = true);
-      this.currentBet = 0;
       this.players.filter(p => !p.game.fold).forEach(p => p.game.check = false);
-      if (this.communityCards.length === 5) return this.showDown();
+      if (this.communityCards.length === 5) {
+        this.nowPlayerIndex = nextPlayerIndex;
+        return this.showDown();
+      }
       return this.setCommunityCard();
     }
     // 아직 한바퀴 덜돔
@@ -350,6 +421,128 @@ class GameClass {
     this.#slotElements.item(nextPlayerIndex).querySelector("#temp").textContent = "베팅중...";
     this.#slotElements.item(nextPlayerIndex).classList.add("turn");
     this.log("딜러", `플레이어 ${nextPlayerIndex+1} 당신의 차례입니다.`);
+    if (nextPlayer.type === "bot") {
+      this.#betButtons.forEach(btn => btn.disabled = true);
+      this.addTimeout(() => {
+        this.botAction(nextPlayerIndex);
+      }, randomInt(this.botBetDelay[0], this.botBetDelay[1]));
+    } else {
+      this.#betButtons.forEach(btn => btn.disabled = false);
+    }
+  }
+
+  /**
+   * 봇 베팅 함수
+   * @param {number} index 플레이어 인덱스 번호
+   */
+  botAction(index) {
+    const player = this.players[index];
+    const hand = this.evaluateHand(player.hand);
+    let indexList = this.players.map((p, i) => i).filter(i => i !== -1);
+    let idx = indexList.indexOf(this.players.findIndex(p => p.first));
+    if (idx !== -1) indexList = indexList.slice(idx).concat(indexList.slice(0, idx));
+    indexList = indexList.map(i => !this.players[i].game.fold ? i : -1).filter(i => i !== -1);
+
+    const { action, confidence } = this.botDecide(player, hand, indexList.indexOf(index));
+    if (action === "raise") {
+      this.#raiseInput.value = this.botRaiseAmount(player.personality, confidence, player.money);
+      return this.betAction("raise");
+    }
+    return this.betAction(action);
+  }
+
+  /**
+   * 봇 베팅 결정 함수
+   * @param {Player} player 플레이어
+   * @param {Card.Evaluate} hand 계산된 결과
+   * @param {number} positionIndex 포지션 순서
+   * @returns {{ action: Bet.Action; confidence: number; }} 리턴
+   */
+  botDecide(player, hand, positionIndex) {
+    const rank = hand.rank;
+    const gap = this.currentBet - player.game.bet;
+    const ratio = gap / player.money; // 베팅금이 보유금에비해 얼마나 되는지
+    // 기본 신뢰도 : 족보를 10점 만점으로 환산
+    const baseConfidence = rank / 10;
+    // 불확실성
+    const noise = random(-0.2, 0.2);
+    
+    /** @type {number} 신뢰도 */
+    let confidence = baseConfidence + noise;
+
+    // 성향 보정
+    if (player.personality === "aggressive") confidence += 0.15;
+    if (player.personality === "passive") confidence -= 0.15;
+
+    // 포지션 보정
+    const posAdvantage = positionIndex / (this.players.length-1); // 0 ~ 1
+    confidence += (posAdvantage-0.5) * 0.2; // -0.1 ~ 0.1 보정
+
+    // 히스토리 보정 (최근 raise 했으면 bluff 성향 보정)
+    const history = player.game.history?.filter(h => h !== "check") || [];
+    const recentRaise = history.slice(-2).includes("raise");
+    if (recentRaise && random(0, 1) < 0.3) confidence += 0.1; // 최근 레이즈 -> 계속 밀어붙이기
+    if (history.every(act => act === "call")) confidence -= 0.1; // 지나치게 수동적 -> bluff 줄이기
+
+    // 행동 결정
+    if (rank <= 2 && ratio > 0.05 && random(0, 1) < 0.7) return { action: "fold", confidence };
+    if (ratio > 0.3 && confidence < 0.5) return { action: "fold", confidence };
+
+    if (confidence < 0.8) {
+      if (ratio < 0.1) return { action: gap === 0 ? "check" : "call", confidence };
+      if (random(0, 1) < 0.3) return { action: gap === 0 ? "check" : "call", confidence };
+      return { action: "fold", confidence };
+    }
+
+    if (
+      confidence > 1.0
+      && random(0, 1) < (
+        player.personality === "aggressive" ? 0.7 : 0.5
+      )
+    ) return { action: "raise", confidence };
+
+    return { action: gap === 0 ? "check" : "call", confidence };
+  }
+
+  /**
+   * 봇 레이즈 금액 결정
+   * @param {Player.Personality} personality 플레이어 성향
+   * @param {number} money 현재 소지금
+   * @param {number} confidence 신뢰도
+   * @returns {number} 레이즈 금액
+   */
+  botRaiseAmount(personality, confidence, money) {
+    // 최소 레이즈: 현재 베팅의 1.5배
+    const minRaise = Math.ceil(this.currentBet*1.5);
+    // 배율 조정
+    let multiplier = 1.5;
+
+    // 성향 기반 배수 결정
+    if (personality === "aggressive") multiplier = random(2.0, 3.5);
+    else if (personality === "passive") multiplier = random(1.1, 1.7);
+    else multiplier = random(1.5, 2.5);
+
+    // 블러프
+    if (confidence < 0.5 && personality === "aggressive" && random(0, 1) < 0.2) {
+      const bluffRaise = Math.min(money, Math.round(minRaise*random(1.0, 1.3)));
+      return Math.max(minRaise, roundToNearest(bluffRaise, 50));
+    }
+
+    // 손패가 강하면 더 크게 레이즈
+    if (confidence > 1.0) multiplier *= random(1.1, 1.4);
+
+    let raiseAmount = minRaise * multiplier;
+
+    // 소지금 부족시 올인
+    if (money <= minRaise*1.5 || raise >= money) return money;
+
+    // 50단위 반올림
+    raiseAmount = roundToNearest(raiseAmount, 50);
+
+    // 최소 보장
+    if (raiseAmount < minRaise) raiseAmount = minRaise;
+
+    return raiseAmount;
   }
 
   /**
@@ -373,16 +566,16 @@ class GameClass {
       frontDIV.appendChild(this.cardClass.cards.get(card));
       cardDIV.appendChild(frontDIV);
       this.#communityCardsElements.appendChild(cardDIV);
-      this.setTimeoutList.push(setTimeout(function() {
+      this.addTimeout(() => {
         cardDIV.classList.add("flip");
         this.log("딜러", `공유카드 ${this.communityCards.length+i+1} : ${card}`);
-      }.bind(this), (i+1)*1000));
+      }, (i+1)*this.openDelay);
     }
     this.log("딜러", `공유카드 ${getNum}장 공개`);
-    this.setTimeoutList.push(setTimeout(function() {
+    this.addTimeout(() => {
       // 카드 공개후 함수
       this.betAction("skip");
-    }.bind(this), (getNum+1)*1000));
+    }, (getNum+1)*this.openDelay);
   }
 
   /**
@@ -404,24 +597,43 @@ class GameClass {
    */
   showDown() {
     this.log("딜러", "패 확인");
+    this.log("딜러", `공유카드 : ${this.communityCards.map(c => c.suit+c.rank).join(',')}`);
     let indexList = this.players.map((p, i) => !p.game.fold ? i : -1).filter(i => i !== -1);
     let idx = indexList.indexOf(this.nowPlayerIndex);
     if (idx !== -1) indexList = indexList.slice(idx).concat(indexList.slice(0, idx));
     /** @type {{[key: number]: Card.Evaluate}} */
     const hands = {};
     for (let i of indexList) hands[i] = this.evaluateHand(this.players[i].hand);
-    const winnerIndex = this.compareHands(hands);
-    for (let i=0; i<indexList.length; i++) {
-      this.setTimeoutList.push(setTimeout(function() {
-        // 여기에 코드추가
-        // 순차적으로 카드가 공개되게 수정
-        // + 승자도 표시되게 아래 코드 옮기기
-      }.bind(this), (i+1)*1000));
-    }
+    this.winPlayerIndex = this.compareHands(hands);
+    
     console.log('플레이어 전체',hands);
-    console.log('승자: 플레이어',winnerIndex+1);
-    console.log('승자 정보',hands[winnerIndex]);
-    this.log("딜러", `플레이어 ${winnerIndex+1} 승리: ${hands[winnerIndex].name} ${hands[winnerIndex].hand.map(c => c.suit+c.rank).join(',')}`);
+    console.log('승자: 플레이어',this.winPlayerIndex+1);
+    console.log('판돈:', this.pot.toLocaleString()+"원");
+    console.log('승자 정보',hands[this.winPlayerIndex]);
+
+    for (let i=0; i<indexList.length; i++) {
+      if (this.players[indexList[i]].type === "human") {
+        this.#slotElements.item(indexList[i]).querySelector("#handOpen").textContent = "카드 공개";
+        this.#slotElements.item(indexList[i]).querySelector("#handOpen").disabled = true;
+      }
+
+      this.addTimeout(() => {
+        this.#slotElements.item(indexList[i]).querySelector("#playerCards").childNodes.forEach((card) => {
+          card.classList.add("flip");
+        });
+        this.log("딜러", `플레이어 ${indexList[i]+1} : ${this.players[indexList[i]].hand.map(c => c.suit+c.rank).join(',')}`);
+      }, (i+1)*this.openDelay);
+    }
+    
+    this.addTimeout(() => {
+      for (let i=0; i<indexList.length; i++) {
+        this.#slotElements.item(indexList[i]).querySelector("#temp").textContent = `${indexList[i] === this.winPlayerIndex ? "승리" : "패배"} : ${hands[indexList[i]].name}`;
+      }
+      this.log("딜러", `플레이어 ${this.winPlayerIndex+1} 승리: ${hands[this.winPlayerIndex].name} ${hands[this.winPlayerIndex].hand.map(c => c.suit+c.rank).join(',')}`);
+      this.log("딜러", `플레이어 ${this.winPlayerIndex+1} +${this.pot.toLocaleString()}원`);
+      this.#nextRoundBtn.disabled = false;
+    }, (indexList.length+1)*this.openDelay);
+    // 다음 라운드 어떻게 할건지랑 베팅 금액 처리 만들어야됨
   }
 
   /**
@@ -629,13 +841,13 @@ class MenuClass {
     this.gameClass = GameClass;
     this.gameClass.players = [
       // 플레이어1은 고정
-      { type: "human", money: -1, hand: [], first: true, game: { bet: 0, check: false, fold: false } },
+      { type: "human", money: -1, hand: [], first: true, game: { bet: 0, check: false, fold: false, history: [] } },
     ];
     this.render();
 
     this.addPlayerBtn.addEventListener("click", () => {
       if (this.gameClass.players.length >= max_players) return;
-      this.gameClass.players.push({ type: "human", money: -1, hand: [], first: false, game: { bet: 0, check: false, fold: false } });
+      this.gameClass.players.push({ type: "human", money: -1, hand: [], first: false, game: { bet: 0, check: false, fold: false, history: [] } });
       this.render();
     });
 

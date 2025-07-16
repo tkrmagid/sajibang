@@ -40,6 +40,7 @@
       <!-- 조작 영역 -->
       <div id="controlPanel">
         <div id="gameLog"></div>
+        <div id="pot">판돈 : 0원</div>
         <div id="actionButtons">
           <div id="raiseUI" class="hidden">
             <input type="number" name="raiseMoney" id="raiseMoney" placeholder="레이즈 금액" min="0" />
@@ -49,6 +50,10 @@
           <button data-action="fold">폴드</button>
           <button data-action="call">콜(체크)</button>
           <button data-action="raise">레이즈</button>
+        </div>
+        
+        <div class="other-buttons">
+          <button id="nextRound" disabled>다음라운드</button>
         </div>
       </div>
     </div>
