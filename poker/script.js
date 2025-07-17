@@ -23,7 +23,7 @@
  */
 /**
  * // 베팅관련
- * @typedef {"raise"|"call"|"check"|"fold"|"skip"} Bet.Action 엑션
+ * @typedef {"raise"|"call"|"check"|"fold"|"skip"|"allIn"} Bet.Action 엑션
  */
 
 // 최대 플레이어
@@ -112,8 +112,6 @@ class GameClass {
 
   /** @type {Player[]} 플레이어 목록 */
   players = [];
-  /** @type {number} 처음 플레이어 */
-  firstPlayerIndex = -1;
   /** @type {number} 현재 플레이어 */
   nowPlayerIndex = -1;
   /** @type {number} 승리 플레이어 */
@@ -134,6 +132,8 @@ class GameClass {
   openDelay = 1000;
   /** @type {number[]} 봇 베팅 시간 [최소, 최대] */
   botBetDelay = [500, 1500];
+  /** @type {number} 라운드 */
+  round = 0;
 
   /**
    * class new로 생성할때 자동 실행
@@ -159,14 +159,19 @@ class GameClass {
       }
     }));
 
+    this.#raiseInput.addEventListener("keydown", (e) => {
+      const minRaise = parseInt(this.#raiseInput.min);
+      if (parseInt(e.key) < minRaise) e.preventDefault();
+      // 여기부터 수정할것
+    });
+
     this.#raiseConfirmBtn.addEventListener("click", () => {
       this.#raiseUI.classList.add("hidden");
       this.betAction("raise");
     });
 
     this.#nextRoundBtn.addEventListener("click", () => {
-      // 여기에 다음라운드 코드 작성
-      this.players[this.winPlayerIndex].money += this.pot;
+      this.nextRound();
     });
   }
 
@@ -189,20 +194,58 @@ class GameClass {
   clear() {
     this.currentBet = 0;
     this.pot = 0;
+    this.round = 0;
     this.#slotElements.forEach((slot) => {
-      slot.classList.remove("fold");
-      slot.classList.remove("turn");
+      slot.classList.remove("turn", "fold");
     });
     this.#betButtons.forEach(btn => btn.disabled = false);
     this.#gameLogElement.innerHTML = "";
-    this.mainMenu.classList.remove("hidden");
-    this.gameScreen.classList.add("hidden");
+    this.menuClass.gameScreen.classList.add("hidden");
+    this.menuClass.mainMenu.classList.remove("hidden");
     this.#raiseUI.classList.remove("hidden");
     this.communityCards = [];
     this.setTimeoutList.forEach(id => {
       clearTimeout(id);
       this.setTimeoutList.splice(this.setTimeoutList.indexOf(id), 1);
     });
+  }
+
+  /**
+   * 다음라운드
+   */
+  nextRound() {
+    this.#nextRoundBtn.disabled = true;
+    const nextFirstIndex = this.players.findIndex(p => p.first) % this.players.length;
+    for (let i=0; i<this.players.length; i++) {
+      const player = this.players[i];
+      if (i === this.winPlayerIndex) player.money += this.pot;
+      player.first = (i === nextFirstIndex);
+      player.game = { ...player.game, bet: 0, check: false, fold: player.money <= 0 };
+      player.hand = [];
+      const slot = this.#slotElements.item(i);
+      slot.classList.remove("turn", "fold");
+      slot.innerHTML = "";
+    }
+
+    this.players.forEach((p, i) => {
+      const busted = p.money <= 0;
+      p.game = { ...p.game, bet: 0, check: false, fold: busted };
+      p.hand = [];
+      const slot = this.#slotElements.item(i);
+      slot.classList.remove("turn", "fold");
+      slot.innerHTML = "";
+    });
+
+    this.pot = 0;
+    this.#potElement.textContent = "판돈 : 0원";
+    this.currentBet = 0;
+    this.nowPlayerIndex = -1;
+    this.winPlayerIndex = -1;
+    this.communityCards = [];
+    this.#communityCardsElements.innerHTML = "";
+
+    this.round += 1;
+    this.init();
   }
 
   /**
@@ -226,13 +269,18 @@ class GameClass {
    * @param {Player} player 플레이어
    */
   changeCallCheck(player) {
-    const btn = Array.from(this.#betButtons.values()).find(btn => btn.dataset.action === "call" || btn.dataset.action === "check");
-    if (this.currentBet > player.game.bet) {
-      btn.dataset.action = "call";
-      btn.textContent = "콜";
+    const btns = Array.from(this.#betButtons.values())
+    const callBtn = btns.find(btn => btn.dataset.action === "call" || btn.dataset.action === "check");
+    if (this.currentBet >= player.money+player.game.bet) {
+      callBtn.dataset.action = "call";
+      callBtn.textContent = "올인";
+      btns.find(btn => btn.dataset.action === "raise").disabled = true;
+    } else if (this.currentBet > player.game.bet) {
+      callBtn.dataset.action = "call";
+      callBtn.textContent = "콜";
     } else {
-      btn.dataset.action = "check";
-      btn.textContent = "체크";
+      callBtn.dataset.action = "check";
+      callBtn.textContent = "체크";
     }
   }
 
@@ -240,13 +288,14 @@ class GameClass {
    * 게임 시작전 설정
    */
   init() {
-    this.log("알림", "게임시작");
+    this.log("알림", `${this.round} 라운드 : 게임시작`);
 
     // 덱 섞기
     this.deck = shuffle(Array.from(this.cardClass.cards.keys()));
 
     // 카드 나누기
     for (let i=0; i<this.players.length; i++) {
+      if (this.players[i].game.fold) continue;
       const card1 = Array.from(this.deck.pop());
       const card2 = Array.from(this.deck.pop());
       this.players[i].hand = [
@@ -262,9 +311,13 @@ class GameClass {
         slot.classList.add("hidden");
       } else {
         slot.classList.remove("hidden");
+        if (player.game.fold) slot.classList.add("fold");
         slot.innerHTML = `
           <div><strong>플레이어 ${i+1} (${player.type === "bot" ? "로봇" : "사람"})</strong></div>
-          <div id="money">${player.money.toLocaleString()}원</div>
+          <div id="money">${
+            player.money === 0 ? "파산"
+            : player.money.toLocaleString()
+          }원</div>
           <div id="temp">
             <!-- ${ player.first ? `(SB)` : this.players[i-1]?.first ? `(BB)` : "" } -->
           </div>
@@ -274,6 +327,7 @@ class GameClass {
         const cardsDIV = document.createElement("div");
         cardsDIV.id = "playerCards";
         for (let i=0; i<2; i++) {
+          if (player.game.fold) continue;
           const cardDIV = document.createElement("div");
           cardDIV.className = "card";
           cardDIV.id = `card${i+1}`;
@@ -295,6 +349,10 @@ class GameClass {
         if (player.type === "bot") return;
         const handOpenBtn = document.createElement("button");
         handOpenBtn.id = "handOpen";
+        if (player.game.fold) {
+          handOpenBtn.classList.add("hidden");
+          handOpenBtn.disabled = true;
+        }
         handOpenBtn.textContent = "카드 확인하기";
         handOpenBtn.addEventListener("mousedown", () => {
           if (handOpenBtn.disabled) return;
@@ -330,7 +388,6 @@ class GameClass {
     this.currentBet = 0;
     const playerIndex = this.players.findIndex(p => p.first);
     if (playerIndex === -1) throw new Error("베팅할 플레이어를 찾을수 없습니다.");
-    this.firstPlayerIndex = playerIndex;
     this.nowPlayerIndex = playerIndex;
     this.changeCallCheck(this.players[playerIndex]);
     this.#slotElements.item(playerIndex).querySelector("#temp").textContent = "베팅중...";
@@ -349,16 +406,17 @@ class GameClass {
 
     if (action === "fold") {
       player.game.fold = true;
-      this.#slotElements.item(this.nowPlayerIndex).classList.remove("fold");
+      this.#slotElements.item(this.nowPlayerIndex).classList.add("fold");
       temp = "폴드";
     } else if (action === "call") {
-      const minus = this.currentBet - player.game.bet;
+      let minus = this.currentBet - player.game.bet;
+      if (minus > player.money) minus = player.money;
       player.money -= minus;
       player.game.bet = this.currentBet;
       this.pot += minus;
       this.#potElement.textContent = `판돈 : ${this.pot.toLocaleString()}원`;
       player.game.check = true;
-      temp = `콜 ${minus}원`;
+      temp = player.money === 0 ? `올인 ${minus.toLocaleString()}원` : `콜 ${minus.toLocaleString()}원`;
     } else if (action === "check") {
       player.game.check = true;
       temp = "체크";
@@ -372,7 +430,10 @@ class GameClass {
       this.#potElement.textContent = `판돈 : ${this.pot.toLocaleString()}원`;
       for (let i of this.players.map((p, i) => !p.game.fold && i !== this.nowPlayerIndex ? i : -1).filter(i => i !== -1)) this.players[i].game.check = false;
       player.game.check = true;
-      temp = `레이즈 ${raiseMoney}원`;
+      temp = player.money === 0 ? `올인 ${raiseMoney.toLocaleString()}원` : `레이즈 ${raiseMoney.toLocaleString()}원`;
+    } else if (action === "allIn") {
+      player.game.check = true;
+      temp = "자동진행";
     }
 
     if (action === "skip") {
@@ -388,7 +449,8 @@ class GameClass {
       player.game.history.push(action);
       const playerMoneyDIV = this.#slotElements.item(this.nowPlayerIndex).querySelector("#money");
       const playerTempDIV = this.#slotElements.item(this.nowPlayerIndex).querySelector("#temp");
-      playerMoneyDIV.textContent = `${player.money}원`;
+      playerMoneyDIV.textContent = player.money === 0 ? "올인"
+      : `${player.money.toLocaleString()}원`;
       playerTempDIV.textContent = temp;
       this.log(`플레이어 ${this.nowPlayerIndex+1}`, temp);
     }
@@ -417,9 +479,12 @@ class GameClass {
     }
     // 아직 한바퀴 덜돔
     this.nowPlayerIndex = nextPlayerIndex;
-    this.changeCallCheck(nextPlayer);
     this.#slotElements.item(nextPlayerIndex).querySelector("#temp").textContent = "베팅중...";
     this.#slotElements.item(nextPlayerIndex).classList.add("turn");
+    if (nextPlayer.money === 0) {
+      this.log("딜러", `플레이어 ${nextPlayerIndex+1} 올인으로 자동진행됩니다.`);
+      return this.betAction("allIn");
+    }
     this.log("딜러", `플레이어 ${nextPlayerIndex+1} 당신의 차례입니다.`);
     if (nextPlayer.type === "bot") {
       this.#betButtons.forEach(btn => btn.disabled = true);
@@ -427,7 +492,8 @@ class GameClass {
         this.botAction(nextPlayerIndex);
       }, randomInt(this.botBetDelay[0], this.botBetDelay[1]));
     } else {
-      this.#betButtons.forEach(btn => btn.disabled = false);
+      for (let i=0; i<this.#betButtons.length; i++) this.#betButtons.item(i).disabled = false;
+      this.changeCallCheck(nextPlayer);
     }
   }
 
@@ -857,6 +923,7 @@ class MenuClass {
       this.gameClass.players = this.gameClass.players.map(p => ({ ...p, money: startingMoney }));
       this.mainMenu.classList.add("hidden");
       this.gameScreen.classList.remove("hidden");
+      this.gameClass.round = 1;
       this.gameClass.init();
     });
   }
