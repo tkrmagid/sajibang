@@ -43,13 +43,14 @@
         <div id="pot">판돈 : 0원</div>
         <div id="actionButtons">
           <div id="raiseUI" class="hidden">
+            <p id="raiseMsg"></p>
             <input type="number" name="raiseMoney" id="raiseMoney" placeholder="레이즈 금액" min="0" />
             <button id="raiseConfirm">확인</button>
           </div>
           
-          <button data-action="fold">폴드</button>
-          <button data-action="call">콜(체크)</button>
-          <button data-action="raise">레이즈</button>
+          <button data-id="fold" data-action="fold">폴드</button>
+          <button data-id="call" data-action="call">콜(체크)</button>
+          <button data-id="raise" data-action="raise">레이즈</button>
         </div>
         
         <div class="other-buttons">
