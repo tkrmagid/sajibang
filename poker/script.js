@@ -4,7 +4,9 @@
  * @typedef {"aggressive"|"passive"|"neutral"} Player.Personality 봇 성향
  **/
 /**
+ * // 플레이어 타입
  * @typedef {Object} Player 플레이어
+ * @property {number} id 플레이어 아이디 (인덱스 번호)
  * @property {Player.Type} type 타입
  * @property {Player.Personality} personality 성향 (봇)
  * @property {Card.Hand[]} hand 손패
@@ -25,9 +27,8 @@
  * // 베팅관련
  * @typedef {"raise"|"call"|"check"|"fold"|"skip"|"allIn"} Bet.Action 엑션
  */
-
 /**
- * // 추가적인 내용
+ * // 키보드 관련
  * @typedef {(
  *  "Backspace"|"Tab"|"Enter"|"Shift"|"Control"|"Alt"|"Pause"|"CapsLock"|
  *  "Escape"|" "|"PageUp"|"PageDown"|"End"|"Home"|"ArrowLeft"|"ArrowUp"|
@@ -40,91 +41,32 @@
  * )} KeyboardEvent.Key 키보드 이벤트 키로 올수있는 값들
  */
 
-// 최대 플레이어
-const max_players = 4;
-
-
-// 도구 함수들
-/**
- * min~max 실수 랜덤
- * @param {number} min 최소값
- * @param {number} max 최대값
- * @returns {number} 실수 랜덤값
- */
-function random(min, max) {
-  if (min > max) throw new Error("random오류: min은 max보다 작거나 같아야 합니다.");
-  const buffer = new Uint32Array(1);
-  crypto.getRandomValues(buffer);
-  return min + (buffer[0] / 2 ** 32) * (max - min);
-}
-
-/**
- * min~max 정수 랜덤
- * @param {number} min 최소값
- * @param {number} max 최대값
- * @returns {number} 정수 랜덤값
- */
-function randomInt(min, max) {
-  if (min > max) throw new Error("random오류: min은 max보다 작거나 같아야 합니다.");
-  const range = max - min + 1;
-  const maxUint32 = 2 ** 32;
-  const maxAcceptable = Math.floor(maxUint32 / range) * range;
-  let randomUnit32;
-  const buffer = new Uint32Array(1);
-  // 편향을 제거하기 위해 범위 초과 값은 버림
-  do {
-    crypto.getRandomValues(buffer);
-    randomUnit32 = buffer[0];
-  } while (randomUnit32 >= maxAcceptable);
-
-  return min + (randomUnit32 % range);
-}
-
-/**
- * 주어진 숫자리르 지정한 단위로 반올림
- * @param {number} value 값
- * @param {number} unit 단위
- * @returns {number} 출력값
- */
-function roundToNearest(value, unit) {
-  return Math.round(value / unit) * unit;
-}
-
-/**
- * 리스트 셔플
- * @param {any[]} arr 섞을 리스트
- * @returns {any[]} 섞인 리스트
- */
-function shuffle(arr) {
-  const result = [...arr];
-  for (let i=result.length-1; i>0; i--) {
-    const j = this.randomInt(0, i);
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-}
-
-
-// 실행
-document.addEventListener("DOMContentLoaded", () => {
-  window.game = new GameClass();
-});
-
-
-// 게임 관련 내용
+// 메인 클래스 (게임 관련 내용)
 class GameClass {
-  // 불러오기
-  #gameLogElement = document.getElementById("gameLog");
-  #slotElements = document.querySelectorAll(".player-slot");
-  #betButtons = document.querySelectorAll("button[data-action]");
-  #raiseUI = document.getElementById("raiseUI");
-  #raiseMsg = document.getElementById("raiseMsg");
-  #raiseInput = document.getElementById("raiseMoney");
-  #raiseConfirmBtn = document.getElementById("raiseConfirm");
-  #communityCardsElements = document.getElementById("communityCards");
-  #potElement = document.getElementById("pot");
-  #nextRoundBtn = document.getElementById("nextRound");
+  // 플레이어가 수정가능한 변수들
+  /** @type {number} 최대 플레이어 */
+  max_players = 4;
 
+  /** @type {number} 카드 공개 딜레이 (ms) (def: 1000) */
+  openDelay = 1000;
+
+  /** @type {number[]} 봇 베팅 시간 [최소, 최대] */
+  botBetDelay = [500, 1500];
+
+  /** @type {boolean} 단축키 허용 */
+  shortcut = false;
+
+  /** @type {KeyboardEvent.Key[][]} 단축키 설정 */
+  shortcutKeys = [ // 앞에서부터 [ 폴드, 콜, 레이즈 ] 키
+    [ "a", "s", "d" ],
+    [ "l", ";", "'" ],
+  ];
+  /** @type {KeyboardEvent.Key|"none"} 일시정지키 설정 (없음: none) */
+  pauseKey = "p";
+
+
+
+  // 기본 선언되는 변수들
   /** @type {Player[]} 플레이어 목록 */
   players = [];
   /** @type {number} 현재 플레이어 */
@@ -143,38 +85,43 @@ class GameClass {
   pot = 0;
   /** @type {number[]} 타임아웃 리스트 */
   setTimeoutList = [];
-  /** @type {number} 카드 공개 딜레이 (ms) (def: 1000) */
-  openDelay = 10;
-  /** @type {number[]} 봇 베팅 시간 [최소, 최대] */
-  botBetDelay = [500, 1500];
   /** @type {number} 라운드 */
   round = 0;
   /** @type {KeyboardEvent.Key[]} 레이즈 허용키 */
-  raiseAllowedKeys = [
-    "Backspace",
-    "ArrowLeft",
-    "ArrowRight",
-    "ArrowDown",
-    "ArrowUp",
-    "Tab",
-    "Delete",
-  ];
-  /** @type {boolean} 단축키 허용 */
-  shortcutKey = false;
+  raiseAllowedKeys = [ "Backspace", "ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp", "Tab", "Delete" ];
 
-  /**
-   * class new로 생성할때 자동 실행
-   */
+  // HTML에서 불러오기
+  #gameLogElement = document.getElementById("gameLog");
+  #slotElements = document.querySelectorAll(".player-slot");
+  #betButtons = document.querySelectorAll("button[data-action]");
+  #raiseUI = document.getElementById("raiseUI");
+  #raiseMsg = document.getElementById("raiseMsg");
+  #raiseInput = document.getElementById("raiseMoney");
+  #raiseConfirmBtn = document.getElementById("raiseConfirm");
+  #communityCardsElements = document.getElementById("communityCards");
+  #potElement = document.getElementById("pot");
+  #nextRoundBtn = document.getElementById("nextRound");
+  #popup = document.getElementById("popup");
+  #popupTitle = document.getElementById("popupTitle");
+  #popupMsg = document.getElementById("popupMsg");
+  #popupActions = document.getElementById("popupActions");
+
+  // 클래스 불러오기
+  /** @type {MenuClass} 메뉴 클래스 불러오기 */
+  menuClass = new MenuClass(this);
+  /** @type {CardClass} 카드 클래스 불러오기 */
+  cardClass = new CardClass();
+
+  // class new로 생성할때 자동 실행
   constructor() {
-    this.menuClass = new MenuClass(this);
-    this.cardClass = new CardClass();
-
+    // 베팅 버튼들 이벤트 부여
     this.#betButtons.forEach(btn => btn.addEventListener("click", (e) => {
-      if (this.nowPlayerIndex === -1) return;
-      /** @type {Bet.Action} */
+      if (this.nowPlayerIndex === -1) return; // 현재 플레이어를 찾을수 없을때
+      /** @type {Bet.Action} 어떤 버튼 눌렀는지 가져오기 */
       const action = e.currentTarget.dataset.action;
+      // 레이즈를 제외한 버튼
       if (action !== "raise") return this.betAction(action);
-
+      
       // 레이즈 일때
       if (this.#raiseUI.classList.contains("hidden")) {
         this.#raiseInput.min = Math.ceil(this.currentBet*1.5);
@@ -188,31 +135,24 @@ class GameClass {
       }
     }));
 
+    // 레이즈 인풋박스 입력제한 이벤트 부여
     this.#raiseInput.addEventListener("keydown", (e) => {
-      /** @type {KeyboardEvent.Key} */
+      /** @type {KeyboardEvent.Key} 누른 key값 가져오기 */
       const key = e.key;
       this.#raiseMsg.textContent = "";
 
-      // Enter 처리
-      if (key === "Enter" || key === "NumpadEnter") return this.#raiseConfirmBtn.dispatchEvent(new Event("click"));
-      
-      // Ctrl + A 허용
-      if (e.ctrlKey && key === "a") return;
-      // 허용된 키 처리
-      if (this.raiseAllowedKeys.includes(key)) return;
       // 숫자 허용
       if (/^[0-9]$/.test(key)) return;
+      // Enter 처리
+      if (key === "Enter" || key === "NumpadEnter") return this.#raiseConfirmBtn.dispatchEvent(new Event("click"));
+      // Ctrl + A 허용
+      if (e.ctrlKey && key === "a") return;
+      // 허용된 키 허용
+      if (this.raiseAllowedKeys.includes(key)) return;
 
-      /** @type {KeyboardEvent.Key[]} */
-      const noMsgKeys = [
-        "CapsLock",
-        "Control",
-        "Shift",
-        "Alt",
-        "Escape",
-        "NumLock",
-      ];
-      let msg = `숫자만 입력할수 없습니다.`;
+      /** @type {KeyboardEvent.Key[]} 메세지를 띄우지 않을 키 */
+      const noMsgKeys = [ "CapsLock", "Control", "Shift", "Alt", "Escape", "NumLock" ];
+      let msg = "숫자만 입력할수 있습니다.";
       if (key === "-") msg = "마이너스는 입력할수 없습니다.";
       if (noMsgKeys.includes(key)) msg = "";
 
@@ -220,36 +160,45 @@ class GameClass {
       return e.preventDefault();
     });
 
+    // 레이즈 확인버튼 이벤트 부여
     this.#raiseConfirmBtn.addEventListener("click", () => {
-      const minValue = Math.ceil(this.currentBet*1.5);
-      const maxValue = this.players[this.nowPlayerIndex].money;
-      const nowValue = parseInt(this.#raiseInput.value);
-      if (minValue > nowValue) {
-        this.#raiseMsg.textContent = `베팅 최소금액: ${minValue.toLocaleString()}원`;
-        return;
-      }
-      if (maxValue < nowValue) {
-        this.#raiseMsg.textContent = `베팅 최대금액: ${maxValue.toLocaleString()}원`;
-        return;
-      }
-      this.#raiseMsg.textContent = "";
-      this.#raiseUI.classList.add("hidden");
-      this.betAction("raise");
+    const minValue = Math.ceil(this.currentBet*1.5);
+    const maxValue = this.players[this.nowPlayerIndex].money;
+    const nowValue = parseInt(this.#raiseInput.value);
+    if (minValue > nowValue) {
+      this.#raiseMsg.textContent = `베팅 최소금액: ${minValue.toLocaleString()}원`;
+      return;
+    }
+    if (maxValue < nowValue) {
+      this.#raiseMsg.textContent = `베팅 최대금액: ${maxValue.toLocaleString()}원`;
+      return;
+    }
+    this.#raiseMsg.textContent = "";
+    this.#raiseUI.classList.add("hidden");
+    this.betAction("raise");
     });
 
-    this.#nextRoundBtn.addEventListener("click", () => {
-      this.nextRound();
-    });
+    // 다음라운드 버튼 이벤트 부여
+    this.#nextRoundBtn.addEventListener("click", this.nextRound);
 
+    // 단축키 + 일시정지 키를 위한 키업 이벤트 부여
     document.addEventListener("keyup", (e) => {
-      if (!this.shortcutKey) return;
+      if (this.pauseKey !== "none" && e.key === this.pauseKey) {
+        if (!this.#popup.classList.contains("hidden") && this.#popupTitle.textContent.includes("일시정지")) return this.closePopup();
+        return this.showPopup("일시정지됨", `일시정지를 해제하려면 ${this.pauseKey}를 누르세요.`, [
+          { text: "해제", onClick: () => this.closePopup() },
+          { text: "메인화면으로", onClick: () => this.clear() },
+        ]);
+      }
+      if (!this.shortcut) return;
       /** @type {KeyboardEvent.Key} */
       const key = e.key;
+      const [[p1k1, p1k2, p1k3], [p2k1, p2k2, p2k3]] = this.shortcutKeys;
       /** @type {Bet.Action|"none"} */
       let action = "none";
-      if (key === "q" || key === "p") action = "fold";
-      if (key === "w" || key === "[") action = "call";
-      if (key === "e" || key === "]") action = "raise";
+      if (key === p1k1 || key === p2k1) action = "fold";
+      if (key === p1k2 || key === p2k2) action = "call";
+      if (key === p1k3 || key === p2k3) action = "raise";
       if (action === "none") return;
       /** @type {HTMLButtonElement} */
       const btn = this.#betButtons.values().find(btn => btn.dataset.id === action);
@@ -279,19 +228,40 @@ class GameClass {
     this.currentBet = 0;
     this.pot = 0;
     this.round = 0;
+    this.nowPlayerIndex = -1;
+    this.winPlayerIndex = -1;
+    // 판돈 UI 초기화
+    this.#potElement.textContent = "판돈: 0원";
+    // 슬롯 UI 초기화
     this.#slotElements.forEach((slot) => {
       slot.classList.remove("turn", "fold");
     });
+    // 배팅 버튼 초기화
     this.#betButtons.forEach(btn => btn.disabled = false);
+    // 로그 초기화
     this.#gameLogElement.innerHTML = "";
-    this.menuClass.gameScreen.classList.add("hidden");
-    this.menuClass.mainMenu.classList.remove("hidden");
+    // 레이즈 UI 초기화
     this.#raiseUI.classList.remove("hidden");
+    // 공유카드 초기화
     this.communityCards = [];
+    // 플레이어 정보 초기화
+    this.players.forEach((p, i) => {
+      p.id = i;
+      p.first = i === 0;
+      p.game = { bet: 0, check: false, fold: false, history: [] };
+      p.hand = [];
+      p.money = -1;
+    });
+    // 타임아웃 초기화
     this.setTimeoutList.forEach(id => {
       clearTimeout(id);
       this.setTimeoutList.splice(this.setTimeoutList.indexOf(id), 1);
     });
+    // 팝업 닫기
+    this.closePopup();
+    // 화면 전환
+    this.menuClass.gameScreen.classList.add("hidden");
+    this.menuClass.mainMenu.classList.remove("hidden");
   }
 
   /**
@@ -299,13 +269,16 @@ class GameClass {
    */
   nextRound() {
     this.#nextRoundBtn.disabled = true;
-    const aliveIndexs = this.players.map((p, i) => p.money > 0 ? i : -1).filter(i => i !== -1);
+    this.players[this.winPlayerIndex].money += this.pot;
+    const alivePlayers = this.players.filter(p => p.money > 0);
+    // 남아있는 플레이어가 1명이거나 봇만 남았을때
+    if (alivePlayers.length === 1 || !alivePlayers.some(p => p.type === "human")) return this.end();
+    const aliveIndexs = alivePlayers.map(p => p.id);
     const currentFirstIndex = this.players.findIndex(p => p.first);
     const rotated = aliveIndexs.slice(aliveIndexs.indexOf(currentFirstIndex)+1).concat(aliveIndexs.slice(0, aliveIndexs.indexOf(currentFirstIndex)+1));
     const nextFirstIndex = rotated.find(i => i !== currentFirstIndex) ?? currentFirstIndex;
     for (let i=0; i<this.players.length; i++) {
       const player = this.players[i];
-      if (i === this.winPlayerIndex) player.money += this.pot;
       player.first = (i === nextFirstIndex);
       player.game = { ...player.game, bet: 0, check: false, fold: player.money <= 0 };
       player.hand = [];
@@ -540,7 +513,7 @@ class GameClass {
       playerMoneyDIV.textContent = player.money === 0 ? "올인"
       : `${player.money.toLocaleString()}원`;
       playerTempDIV.textContent = temp;
-      this.log(`플레이어 ${this.nowPlayerIndex+1}`, temp);
+      if (action !== "allIn") this.log(`플레이어 ${this.nowPlayerIndex+1}`, temp);
     }
 
     const nextPlayerIndex = this.getNextPlayerIndex();
@@ -592,7 +565,7 @@ class GameClass {
   botAction(index) {
     const player = this.players[index];
     const hand = this.evaluateHand(player.hand);
-    let indexList = this.players.map((p, i) => i).filter(i => i !== -1);
+    let indexList = this.players.map(p => p.id);
     let idx = indexList.indexOf(this.players.findIndex(p => p.first));
     if (idx !== -1) indexList = indexList.slice(idx).concat(indexList.slice(0, idx));
     indexList = indexList.map(i => !this.players[i].game.fold ? i : -1).filter(i => i !== -1);
@@ -752,7 +725,7 @@ class GameClass {
   showDown() {
     this.log("딜러", "패 확인");
     this.log("딜러", `공유카드 : ${this.communityCards.map(c => c.suit+c.rank).join(',')}`);
-    let indexList = this.players.map((p, i) => !p.game.fold ? i : -1).filter(i => i !== -1);
+    let indexList = this.players.map(p => p.id);
     let idx = indexList.indexOf(this.nowPlayerIndex);
     if (idx !== -1) indexList = indexList.slice(idx).concat(indexList.slice(0, idx));
     /** @type {{[key: number]: Card.Evaluate}} */
@@ -924,7 +897,7 @@ class GameClass {
     return {
       rank: 1,
       name: "하이카드",
-      hands: parsed.slice(0,5),
+      hand: parsed.slice(0,5),
       kickers: parsed.slice(5).map(c => c.value),
     };
   }
@@ -974,6 +947,59 @@ class GameClass {
     && JSON.stringify(p.kickers) === JSON.stringify(best.kickers)
     ).map(([i,]) => parseInt(i))[0];
   }
+
+  /**
+   * 게임 종료
+   */
+  end() {
+    const finalPlayer = this.players.find(p => p.money > 0);
+    this.showPopup(
+      "게임 종료",
+      [
+        `최종 승자: 플레이어 ${finalPlayer.id+1}${finalPlayer.type === "bot" ? "(봇)" : ""}`,
+        `보유 금액: ${finalPlayer.money.toLocaleString()}원`,
+      ].join("<br />"),
+      [
+        { text: "메인으로", onClick: () => this.clear() },
+      ]
+    )
+  }
+
+  /**
+   * 팝업 표시
+   * @param {string} title 제목
+   * @param {string} message 내용
+   * @param {{ text: string; id?: string; onClick: () => void; }[]} [buttons] 버튼 목록 (기본: 닫기)
+   */
+  showPopup(title, message, buttons = [{ text: "닫기", id: "popupCloseBtn", onClick: () => this.closePopup() }]) {
+    this.#popupTitle.textContent = title;
+    this.#popupMsg.innerHTML = message;
+    this.#popupActions.innerHTML = "";
+
+    buttons.forEach(({ text, id, onClick }) => {
+      const btn = document.createElement("button");
+      btn.textContent = text;
+      if (id !== undefined) btn.id = id;
+      btn.onclick = onClick;
+      this.#popupActions.appendChild(btn);
+    });
+
+    this.#popup.classList.remove("hidden");
+  }
+  /**
+   * 팝업 닫기
+   */
+  closePopup() {
+    this.#popup.classList.add("hidden");
+    this.#popupTitle.textContent = "알림";
+    this.#popupMsg.innerHTML = "메시지";
+    this.#popupActions.innerHTML = "";
+    const btn = document.createElement("button");
+    btn.textContent = "닫기";
+    btn.id = "popupCloseBtn";
+    btn.onclick = () => this.#popup.classList.add("hidden");
+    this.#popupActions.appendChild(btn);
+  }
 }
 
 
@@ -992,16 +1018,18 @@ class MenuClass {
    * @param {GameClass} GameClass gameClass
    */
   constructor(GameClass) {
+    // 메인 클래스 불러오기 (게임 클래스)
     this.gameClass = GameClass;
+
     this.gameClass.players = [
       // 플레이어1은 고정
-      { type: "human", money: -1, hand: [], first: true, game: { bet: 0, check: false, fold: false, history: [] } },
+      { id: 0, type: "human", money: -1, hand: [], first: true, game: { bet: 0, check: false, fold: false, history: [] } },
     ];
     this.render();
 
     this.addPlayerBtn.addEventListener("click", () => {
       if (this.gameClass.players.length >= max_players) return;
-      this.gameClass.players.push({ type: "human", money: -1, hand: [], first: false, game: { bet: 0, check: false, fold: false, history: [] } });
+      this.gameClass.players.push({ id: 0, type: "human", money: -1, hand: [], first: false, game: { bet: 0, check: false, fold: false, history: [] } });
       this.render();
     });
 
@@ -1022,6 +1050,7 @@ class MenuClass {
   render() {
     this.playerList.innerHTML = "";
     this.gameClass.players.forEach((p, i) => {
+      p.id = i;
       const li = document.createElement("li");
       li.className = "player-item";
       li.dataset.index = i;
@@ -1195,3 +1224,70 @@ class CardClass {
     return svg;
   }
 }
+
+// 도구 함수들 시작 부분
+/**
+ * min~max 실수 랜덤
+ * @param {number} min 최소값
+ * @param {number} max 최대값
+ * @returns {number} 실수 랜덤값
+ */
+function random(min, max) {
+  if (min > max) throw new Error("random오류: min은 max보다 작거나 같아야 합니다.");
+  const buffer = new Uint32Array(1);
+  crypto.getRandomValues(buffer);
+  return min + (buffer[0] / 2 ** 32) * (max - min);
+}
+
+/**
+ * min~max 정수 랜덤
+ * @param {number} min 최소값
+ * @param {number} max 최대값
+ * @returns {number} 정수 랜덤값
+ */
+function randomInt(min, max) {
+  if (min > max) throw new Error("random오류: min은 max보다 작거나 같아야 합니다.");
+  const range = max - min + 1;
+  const maxUint32 = 2 ** 32;
+  const maxAcceptable = Math.floor(maxUint32 / range) * range;
+  let randomUnit32;
+  const buffer = new Uint32Array(1);
+  // 편향을 제거하기 위해 범위 초과 값은 버림
+  do {
+    crypto.getRandomValues(buffer);
+    randomUnit32 = buffer[0];
+  } while (randomUnit32 >= maxAcceptable);
+
+  return min + (randomUnit32 % range);
+}
+
+/**
+ * 주어진 숫자리르 지정한 단위로 반올림
+ * @param {number} value 값
+ * @param {number} unit 단위
+ * @returns {number} 출력값
+ */
+function roundToNearest(value, unit) {
+  return Math.round(value / unit) * unit;
+}
+
+/**
+ * 리스트 셔플
+ * @param {any[]} arr 섞을 리스트
+ * @returns {any[]} 섞인 리스트
+ */
+function shuffle(arr) {
+  const result = [...arr];
+  for (let i=result.length-1; i>0; i--) {
+    const j = this.randomInt(0, i);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+// 도구 함수들 끝 부분
+
+
+// 실행
+document.addEventListener("DOMContentLoaded", () => {
+  window.game = new GameClass();
+});
