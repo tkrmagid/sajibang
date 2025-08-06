@@ -22,3 +22,6 @@ yarn-error.log*
 # 운영체제별 숨김 파일
 .DS_Store
 Thumbs.db
+
+# 테스트 파일
+test*.ts
