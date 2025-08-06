@@ -1,11 +1,11 @@
 {
   "compilerOptions": {
     // 어떤 자바스크립트 버전으로 변환할지 지정 (예: "ES5", "ES6/ES2015", "ES2020" 등)
-    "target": "esnext",
+    "target": "es2020",
     // 모듈 시스템 지정 ("commonjs", "esnext", "amd" 등)
     "module": "commonjs",
     // 사용할 JavaScript API 환경 (DOM, ES2020 등)
-    "lib": ["ESNext", "DOM"],
+    "lib": ["ES2020", "DOM"],
     // CommonJS 모듈 방식에서도 ES6 import/export 사용 가능하게 함
     "esModuleInterop": true,
     // 엄격한 타입 검사 적용 (true일 경우 하위 strict 항목도 활성화됨)

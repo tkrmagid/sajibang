@@ -14,3 +14,10 @@ import { getPlaylist } from "./core/getPlaylist";
   console.log(playlist);
   console.log(playlist.videos[0]);
 })();
+
+
+// 배포용 코드
+export * from "./core/getChannel";
+export * from "./core/getPlaylist";
+export * from "./core/getSearch";
+export * from "./core/getVideo";
