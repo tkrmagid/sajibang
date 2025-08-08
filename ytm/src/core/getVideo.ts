@@ -1,6 +1,7 @@
 import axios from "axios";
 import { VideoInfo } from "../types/video";
 import { getCookie } from "../utils/getCookie";
+import { defaultHeader } from "../utils/getHeader";
 
 const checkRegions = [ "KR" ];
 
@@ -12,8 +13,7 @@ export async function getVideo(videoId: string): Promise<VideoInfo> {
     err?: any;
   } = await axios.get(url, {
     headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-      "Accept-Language": "ko-KR,en-US,en;q=0.9",
+          ...defaultHeader,
       "Cookie": getCookie(),
     }
   }).then(v => ({
@@ -21,7 +21,7 @@ export async function getVideo(videoId: string): Promise<VideoInfo> {
     data: v.data
   })).catch((err) => ({
     status: -1,
-    err: err?.reponse?.message
+    err: err?.response?.message
   }));
   if (!res.data || res.err) throw new Error(res.err || "오류발생");
   const ytInitMatch = res.data.match(/var ytInitialPlayerResponse = (.*?});/);
@@ -34,7 +34,7 @@ export async function getVideo(videoId: string): Promise<VideoInfo> {
   const reason = ytData?.playabilityStatus?.reason;
 
   if (status !== "OK") throw new Error(status + " : " + reason);
-  if (videoDetails === undefined || microformat === undefined) throw new Error("영상 가져오기 오류");
+  if (!videoDetails || !microformat) throw new Error("영상 가져오기 오류");
 
   return {
     videoId: videoDetails.videoId,
@@ -43,7 +43,7 @@ export async function getVideo(videoId: string): Promise<VideoInfo> {
       id: videoDetails.channelId,
       name: videoDetails.author.replace(" - Topic","")
     },
-    thumbnail: videoDetails.thumbnail.thumbnails.pop()?.url || '',
+    thumbnail: videoDetails.thumbnail.thumbnails.pop()?.url || "",
     duration: parseInt(videoDetails.lengthSeconds),
     regions: Object.fromEntries(checkRegions.map(k => [k, microformat.playerMicroformatRenderer.availableCountries.includes(k)])),
   };

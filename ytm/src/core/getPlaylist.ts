@@ -2,6 +2,7 @@ import axios from "axios";
 import { PlaylistInfo } from "../types/playlist";
 import { SearchResult } from "../types/search";
 import { getCookie } from "../utils/getCookie";
+import { defaultHeader } from "../utils/getHeader";
 
 export async function getPlaylist(playlistId: string): Promise<PlaylistInfo> {
   const url = `https://www.youtube.com/playlist?list=${playlistId}`;
@@ -11,8 +12,7 @@ export async function getPlaylist(playlistId: string): Promise<PlaylistInfo> {
     err?: any;
   } = await axios.get(url, {
     headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-      "Accept-Language": "ko-KR,en-US,en;q=0.9",
+      ...defaultHeader,
       "Cookie": getCookie(),
     }
   }).then(v => ({
@@ -20,30 +20,31 @@ export async function getPlaylist(playlistId: string): Promise<PlaylistInfo> {
     data: v.data
   })).catch((err) => ({
     status: -1,
-    err: err?.reponse?.message
+    err: err?.response?.message
   }));
   if (!res.data || res.err) throw new Error(res.err || "오류발생");
   const ytInitMatch = res.data.match(/var ytInitialData = (.*?});/);
   if (!ytInitMatch) throw new Error("플레이리스트 데이터 추출 실패");
 
   const ytData = JSON.parse(ytInitMatch[1]);
-  const metaData = ytData?.metadata?.playlistMetadataRenderer;
-  const contents = ytData?.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents?.[0]?.playlistVideoListRenderer;
+  const playlistTitle = ytData?.metadata?.playlistMetadataRenderer;
+  const contents = ytData?.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents?.[0]?.playlistVideoListRenderer?.contents;
 
-  if (metaData === undefined || contents === undefined) throw new Error("플레이리스트 가져오기 오류");
+  if (!playlistTitle || !contents) throw new Error("플레이리스트 가져오기 오류");
 
   const videos: SearchResult[] = [];
 
-  for (const item of contents.contents) {
+  for (const item of contents) {
     const video = item.playlistVideoRenderer;
     if (!video) continue;
+    const videoId = video.videoId;
     const title = video.title.runs?.[0]?.text;
     const channelId = video.shortBylineText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId;
     const channelName = video.shortBylineText?.runs?.[0]?.text;
     const duration = video.lengthText?.simpleText;
-    if (!title || !channelId || !channelName || !duration) continue;
+    if (!videoId || !title || !channelId || !channelName || !duration) continue;
     videos.push({
-      videoId: video.videoId,
+      videoId,
       title,
       channel: {
         id: channelId,
@@ -56,7 +57,7 @@ export async function getPlaylist(playlistId: string): Promise<PlaylistInfo> {
 
   return {
     id: playlistId,
-    title: metaData.title,
+    title: playlistTitle,
     total: videos.length,
     videos,
   };

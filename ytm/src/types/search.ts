@@ -8,3 +8,5 @@ export interface SearchResult {
   thumbnail: string;
   duration: string;
 }
+
+export type ItemType = "노래"|"동영상"|"앨범"|"커뮤니티 재생목록"|"아티스트"|"에피소드"|"프로필";

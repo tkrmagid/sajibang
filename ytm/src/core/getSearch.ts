@@ -1,8 +1,9 @@
 import axios from "axios";
 import { SearchResult } from "../types/search";
 import { getCookie } from "../utils/getCookie";
+import { defaultHeader } from "../utils/getHeader";
 
-export async function searchVideo(query: string): Promise<SearchResult[]> {
+export async function getSearch(query: string): Promise<SearchResult[]> {
   const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
   const res: {
     status: number;
@@ -10,8 +11,7 @@ export async function searchVideo(query: string): Promise<SearchResult[]> {
     err?: any;
   } = await axios.get(url, {
     headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-      "Accept-Language": "ko-KR,en-US,en;q=0.9",
+      ...defaultHeader,
       "Cookie": getCookie(),
     }
   }).then(v => ({
@@ -19,7 +19,7 @@ export async function searchVideo(query: string): Promise<SearchResult[]> {
     data: v.data
   })).catch((err) => ({
     status: -1,
-    err: err?.reponse?.message
+    err: err?.response?.message
   }));
   if (!res.data || res.err) throw new Error(res.err || "오류발생");
   const ytInitMatch = res.data.match(/var ytInitialData = (.*?});/);
@@ -27,7 +27,7 @@ export async function searchVideo(query: string): Promise<SearchResult[]> {
 
   const ytData = JSON.parse(ytInitMatch[1]);
   const contents = ytData?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents;
-  if (contents === undefined) throw new Error("검색 가져오기 오류");
+  if (!contents) throw new Error("검색 가져오기 오류");
 
   const videoItems: SearchResult[] = [];
   for (const section of contents) {
