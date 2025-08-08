@@ -1,7 +1,7 @@
 import axios from "axios";
 import { SearchResult } from "../../types/search";
 import { getCookie } from "../../utils/getCookie";
-import { defaultHeader } from "../../utils/getHeader";
+import { clientVersion, defaultHeader } from "../../utils/getHeader";
 
 export async function getRecommend(videoId: string, playlistId?: string): Promise<SearchResult[]> {
   const url = `https://music.youtube.com/youtubei/v1/next?prettyPrint=false`;
@@ -16,7 +16,7 @@ export async function getRecommend(videoId: string, playlistId?: string): Promis
     context: {
       client: {
         clientName: "WEB_REMIX",
-        clientVersion: "1.20250805.07.00",
+        clientVersion: clientVersion,
         osName: "Windows",
         osVersion: "10.0",
         platform: "DESKTOP",
@@ -35,8 +35,8 @@ export async function getRecommend(videoId: string, playlistId?: string): Promis
     status: v.status,
     data: v.data
   })).catch((err) => ({
-    status: -1,
-    err: err?.response?.message
+    status: err?.response?.data?.error?.code || -1,
+    err: err?.response?.data?.error?.message || "오류발생"
   }));
   if (!res.data || res.err) throw new Error(res.err || "오류발생");
 
