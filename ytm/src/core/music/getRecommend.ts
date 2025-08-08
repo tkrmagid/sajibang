@@ -1,9 +1,9 @@
 import axios from "axios";
 import { SearchResult } from "../../types/search";
 import { getCookie } from "../../utils/getCookie";
-import { clientVersion, defaultHeader } from "../../utils/getHeader";
+import { defaultHeader } from "../../utils/getHeader";
 
-export async function getRecommend(videoId: string, playlistId?: string): Promise<SearchResult[]> {
+export async function getRecommend(clientVersion: string, videoId: string, playlistId?: string): Promise<SearchResult[]> {
   const url = `https://music.youtube.com/youtubei/v1/next?prettyPrint=false`;
   const res: {
     status: number;
@@ -46,7 +46,7 @@ export async function getRecommend(videoId: string, playlistId?: string): Promis
   if (!playlistId) {
     const getPlaylistId = contents.find((v: any) => v.automixPreviewVideoRenderer)?.automixPreviewVideoRenderer?.content?.automixPlaylistVideoRenderer?.navigationEndpoint?.watchPlaylistEndpoint?.playlistId;
     if (!getPlaylistId) return [];
-    return await getRecommend(videoId, getPlaylistId);
+    return await getRecommend(clientVersion, videoId, getPlaylistId);
   }
 
   const videoItems: SearchResult[] = [];
