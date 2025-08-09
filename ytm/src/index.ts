@@ -6,6 +6,7 @@ import { getClientVersion as getMusicClientVersion } from "./core/music/getClien
 import { getPlaylist as getMusicPlaylist } from "./core/music/getPlaylist";
 import { getRecommend as getMusicRecommend } from "./core/music/getRecommend";
 import { getSearch as getMusicSearch } from "./core/music/getSearch";
+import { getSubTitle as getMusicSubTitle } from "./core/music/getSubTitle";
 
 (async () => {
   // const search = await getSearch("내손을 잡아");
@@ -25,6 +26,8 @@ import { getSearch as getMusicSearch } from "./core/music/getSearch";
   // console.log(musicRecommend);
   // const musicSearch = await getMusicSearch("내손을잡아");
   // console.log(musicSearch);
+  const musicSubTitle = await getMusicSubTitle(clientVersion, "CY9NrL3Szvg");
+  console.log(musicSubTitle);
 })();
 
 
