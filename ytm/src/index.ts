@@ -8,6 +8,10 @@ import { getRecommend as getMusicRecommend } from "./core/music/getRecommend";
 import { getSearch as getMusicSearch } from "./core/music/getSearch";
 import { getSubTitle as getMusicSubTitle } from "./core/music/getSubTitle";
 
+import { clearProcess, getStream } from "./core/getStream";
+import { defaultHeader } from "./utils/getHeader";
+import { getCookie } from "./utils/getCookie";
+
 (async () => {
   // const search = await getSearch("내손을 잡아");
   // console.log(search);
@@ -18,16 +22,20 @@ import { getSubTitle as getMusicSubTitle } from "./core/music/getSubTitle";
   // const playlist = await getPlaylist("PLFHFFYu_hi2bwfiLcrPzDPdbEMJmjyL1P");
   // console.log(playlist);
 
-  const clientVersion = await getMusicClientVersion();
-  console.log(clientVersion);
+  // const clientVersion = await getMusicClientVersion();
+  // console.log(clientVersion);
+  
   // const musicPlaylist = await getMusicPlaylist("RDCLAK5uy_l7wbVbkC-dG5fyEQQsBfjm_z3dLAhYyvo");
   // console.log(musicPlaylist);
   // const musicRecommend = await getMusicRecommend(clientVersion, "CY9NrL3Szvg");
   // console.log(musicRecommend);
   // const musicSearch = await getMusicSearch("내손을잡아");
   // console.log(musicSearch);
-  const musicSubTitle = await getMusicSubTitle(clientVersion, "CY9NrL3Szvg");
-  console.log(musicSubTitle);
+  // const musicSubTitle = await getMusicSubTitle(clientVersion, "CY9NrL3Szvg");
+  // console.log(musicSubTitle);
+
+  const stream = await getStream("CY9NrL3Szvg");
+  console.log("stream", stream);
 })();
 
 

@@ -25,3 +25,6 @@ Thumbs.db
 
 # 테스트 파일
 test*.ts
+
+# ytdlp 파일
+ytdlp/

@@ -13,7 +13,7 @@ export async function getVideo(videoId: string): Promise<VideoInfo> {
     err?: any;
   } = await axios.get(url, {
     headers: {
-          ...defaultHeader,
+      ...defaultHeader,
       "Cookie": getCookie(),
     }
   }).then(v => ({
