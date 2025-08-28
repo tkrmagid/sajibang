@@ -1,4 +1,5 @@
-import "dotenv/config";
+// 배포할땐 dotenv빼기
+// import "dotenv/config";
 import { Cookies } from "../types/cookie";
 
 const defaultCookies: Cookies[] = [
@@ -25,7 +26,8 @@ const defaultCookies: Cookies[] = [
 const customPREF = "tz=Asia.Seoul&hl=ko&gl=KR&last_quality=1080";
 
 export function getCookie(keys: Cookies[] = defaultCookies, blocks?: Cookies[]): string {
-  const text = process.env.COOKIE ?? "";
+  const text = process.env.COOKIE?.trim();
+  if (!text) throw new ReferenceError("env: COOKIE is missing");
   const cookies = Object.fromEntries(
     text
     .split(";")

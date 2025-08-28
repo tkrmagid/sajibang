@@ -1,4 +1,5 @@
-import "dotenv/config";
+// 배포할땐 dotenv빼기
+// import "dotenv/config";
 import { defaultHeader } from "../utils/getHeader";
 import { getCookie } from "../utils/getCookie";
 import { ChildProcessWithoutNullStreams } from "node:child_process";
@@ -7,7 +8,9 @@ import YTDlpWrap from "yt-dlp-wrap";
 import path from "node:path";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 
-const dirPath = path.join(process.cwd(), process.env.YTDLP?.trim() ?? "ytdlp");
+const envYtdlp = process.env.YTDLP?.trim();
+if (!envYtdlp) throw new ReferenceError("env: YTDLP is missing");
+const dirPath = path.join(process.cwd(), envYtdlp);
 const filePath = path.join(dirPath, "ytdlp");
 const cookieFilePath = path.join(dirPath, "cookie");
 var currentProcess: ChildProcessWithoutNullStreams | undefined = undefined;
